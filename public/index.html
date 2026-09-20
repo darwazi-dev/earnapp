@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>کاریاب — کسب درآمد روزانه</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --teal-950:#0d2b28;
+    --teal-900:#123832;
+    --teal-800:#1a4b43;
+    --gold-500:#e0a73f;
+    --gold-400:#eabb63;
+    --cream-50:#f8f4e9;
+    --cream-100:#efe8d6;
+    --ink-900:#1b1b18;
+    --ink-600:#5b5850;
+    --danger:#b3413a;
+    --ok:#3e7d5a;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:'Vazirmatn', system-ui, sans-serif;
+    background:var(--cream-50);
+    color:var(--ink-900);
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .app{max-width:480px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;}
+  .hidden{display:none !important;}
+
+  /* --- Auth screens --- */
+  .auth-wrap{padding:48px 24px;display:flex;flex-direction:column;justify-content:center;min-height:100vh;}
+  .brand{text-align:center;margin-bottom:36px;}
+  .brand-mark{font-size:40px;line-height:1;margin-bottom:10px;}
+  .brand h1{font-size:26px;font-weight:800;margin:0 0 6px;color:var(--teal-900);}
+  .brand p{margin:0;color:var(--ink-600);font-size:14px;}
+  .card{background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 3px rgba(20,20,10,.06);}
+  label{display:block;font-size:13px;color:var(--ink-600);margin:14px 0 6px;}
+  label:first-child{margin-top:0;}
+  input{
+    width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--cream-100);
+    font-family:inherit;font-size:15px;background:var(--cream-50);color:var(--ink-900);
+  }
+  input:focus{outline:none;border-color:var(--teal-800);}
+  .btn{
+    width:100%;padding:14px;border-radius:12px;border:none;font-family:inherit;
+    font-size:15px;font-weight:700;cursor:pointer;margin-top:18px;
+  }
+  .btn-primary{background:var(--teal-900);color:var(--cream-50);}
+  .btn-primary:active{background:var(--teal-950);}
+  .btn-gold{background:var(--gold-500);color:var(--teal-950);}
+  .btn-outline{background:transparent;border:1.5px solid var(--teal-900);color:var(--teal-900);}
+  .switch-line{text-align:center;margin-top:16px;font-size:14px;color:var(--ink-600);}
+  .switch-line a{color:var(--teal-900);font-weight:700;text-decoration:none;}
+  .err{background:#fbeceb;color:var(--danger);padding:10px 12px;border-radius:10px;font-size:13.5px;margin-top:14px;}
+
+  /* --- Main app --- */
+  header.topbar{
+    background:var(--teal-900);color:var(--cream-50);
+    padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 26px;
+    border-radius:0 0 26px 26px;
+  }
+  .topbar-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
+  .hello{font-size:14px;opacity:.8;}
+  .logout{font-size:13px;opacity:.75;background:none;border:none;color:inherit;font-family:inherit;cursor:pointer;}
+  .balance-label{font-size:13px;opacity:.75;margin-bottom:4px;}
+  .balance-num{font-size:44px;font-weight:800;line-height:1;letter-spacing:-1px;}
+  .balance-num span{font-size:18px;font-weight:600;opacity:.85;margin-right:6px;}
+  .balance-sub{margin-top:10px;font-size:13px;color:var(--gold-400);}
+
+  main{flex:1;padding:20px 18px 100px;}
+  .section-title{font-size:16px;font-weight:700;margin:6px 0 14px;color:var(--teal-900);}
+
+  .task{
+    display:flex;align-items:center;gap:14px;background:#fff;border-radius:16px;
+    padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(20,20,10,.05);
+  }
+  .task.done{opacity:.55;}
+  .task-icon{
+    width:44px;height:44px;flex:0 0 44px;border-radius:12px;background:var(--cream-100);
+    display:flex;align-items:center;justify-content:center;font-size:20px;
+  }
+  .task-info{flex:1;min-width:0;}
+  .task-info h3{font-size:14.5px;margin:0 0 3px;font-weight:700;}
+  .task-info p{font-size:12.5px;color:var(--ink-600);margin:0;}
+  .task-reward{
+    flex:0 0 auto;text-align:center;background:var(--cream-100);color:var(--teal-900);
+    font-weight:800;font-size:13.5px;padding:8px 10px;border-radius:10px;min-width:64px;
+  }
+  .task-reward small{display:block;font-weight:500;font-size:10px;color:var(--ink-600);}
+  .task-btn{
+    flex:0 0 auto;padding:9px 14px;border-radius:10px;border:none;font-family:inherit;
+    font-weight:700;font-size:13px;background:var(--gold-500);color:var(--teal-950);cursor:pointer;
+  }
+  .task-btn:disabled{background:var(--cream-100);color:var(--ink-600);}
+
+  .bottom-nav{
+    position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;
+    background:#fff;border-top:1px solid var(--cream-100);
+    padding:14px 18px calc(env(safe-area-inset-bottom,0px) + 14px);
+  }
+
+  /* --- Withdraw modal --- */
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(13,43,40,.55);display:flex;align-items:flex-end;
+    z-index:50;
+  }
+  .modal{
+    width:100%;max-width:480px;margin:0 auto;background:var(--cream-50);
+    border-radius:22px 22px 0 0;padding:24px 22px calc(env(safe-area-inset-bottom,0px) + 24px);
+    max-height:88vh;overflow-y:auto;
+  }
+  .modal h2{margin:0 0 4px;font-size:18px;color:var(--teal-900);}
+  .modal .hint{font-size:13px;color:var(--ink-600);margin-bottom:16px;}
+  .modal-close{float:left;background:none;border:none;font-size:22px;color:var(--ink-600);cursor:pointer;}
+  select{
+    width:100%;padding:13px 14px;border-radius:12px;border:1.5px solid var(--cream-100);
+    font-family:inherit;font-size:15px;background:#fff;color:var(--ink-900);
+  }
+  .wd-item{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--cream-100);font-size:13.5px;}
+  .wd-item:last-child{border-bottom:none;}
+  .status-pill{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700;}
+  .status-pending{background:#fdf1dd;color:#93650f;}
+  .status-approved{background:#e3f2e8;color:var(--ok);}
+  .status-rejected{background:#fbeceb;color:var(--danger);}
+  .toast{
+    position:fixed;top:calc(env(safe-area-inset-top,0px) + 16px);left:50%;transform:translateX(-50%);
+    background:var(--teal-950);color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;
+    z-index:100;box-shadow:0 4px 14px rgba(0,0,0,.2);
+  }
+
+  @media (prefers-color-scheme: dark){
+    body{background:var(--ink-900);color:var(--cream-50);}
+    .card,.task,.modal,.bottom-nav{background:#242420;}
+    input,select{background:#2c2c26;border-color:#3a3a32;color:var(--cream-50);}
+    .task-reward{background:#2c2c26;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- AUTH: LOGIN -->
+  <div id="view-login" class="auth-wrap">
+    <div class="brand">
+      <div class="brand-mark">🪙</div>
+      <h1>کاریاب</h1>
+      <p>هر روز کار کن، هر روز پول بگیر</p>
+    </div>
+    <div class="card">
+      <label>شماره تلفن</label>
+      <input id="login-phone" type="tel" placeholder="07xxxxxxxx" inputmode="numeric">
+      <label>رمز عبور</label>
+      <input id="login-password" type="password" placeholder="رمز عبور خود را وارد کنید">
+      <button class="btn btn-primary" onclick="doLogin()">ورود</button>
+      <div id="login-err" class="err hidden"></div>
+    </div>
+    <div class="switch-line">حساب ندارید؟ <a onclick="showView('register')">ثبت‌نام کنید</a></div>
+  </div>
+
+  <!-- AUTH: REGISTER -->
+  <div id="view-register" class="auth-wrap hidden">
+    <div class="brand">
+      <div class="brand-mark">🪙</div>
+      <h1>ساخت حساب جدید</h1>
+      <p>ثبت‌نام رایگان است، همین حالا شروع کن</p>
+    </div>
+    <div class="card">
+      <label>نام کامل</label>
+      <input id="reg-name" type="text" placeholder="نام شما">
+      <label>شماره تلفن</label>
+      <input id="reg-phone" type="tel" placeholder="07xxxxxxxx" inputmode="numeric">
+      <label>رمز عبور</label>
+      <input id="reg-password" type="password" placeholder="حداقل ۴ کاراکتر">
+      <button class="btn btn-gold" onclick="doRegister()">ساخت حساب</button>
+      <div id="register-err" class="err hidden"></div>
+    </div>
+    <div class="switch-line">حساب دارید؟ <a onclick="showView('login')">وارد شوید</a></div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="view-main" class="hidden">
+    <header class="topbar">
+      <div class="topbar-row">
+        <span class="hello">سلام، <b id="user-name"></b> 👋</span>
+        <button class="logout" onclick="logout()">خروج</button>
+      </div>
+      <div class="balance-label">موجودی شما</div>
+      <div class="balance-num"><span>؋</span><span id="balance">0</span></div>
+      <div class="balance-sub">حداقل برداشت: ۵۰۰ افغانی</div>
+    </header>
+
+    <main>
+      <div class="section-title">تسک‌های امروز</div>
+      <div id="tasks-list"></div>
+    </main>
+
+    <div class="bottom-nav">
+      <button class="btn btn-primary" style="margin-top:0" onclick="openWithdraw()">برداشت پول 💸</button>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- WITHDRAW MODAL -->
+<div id="withdraw-modal" class="modal-bg hidden">
+  <div class="modal">
+    <button class="modal-close" onclick="closeWithdraw()">×</button>
+    <h2>برداشت پول</h2>
+    <div class="hint">حداقل مبلغ برداشت ۵۰۰ افغانی است. درخواست شما بعد از تایید ادمین پرداخت می‌شود.</div>
+
+    <label>مبلغ (افغانی)</label>
+    <input id="wd-amount" type="number" placeholder="مثلاً 500">
+
+    <label>روش دریافت</label>
+    <select id="wd-method">
+      <option value="hesabpay">HesabPay</option>
+      <option value="mpaisa">M-Paisa (Roshan)</option>
+      <option value="hawala">حواله</option>
+    </select>
+
+    <label>شماره حساب / موبایل</label>
+    <input id="wd-account" type="text" placeholder="شماره حساب یا موبایل خود">
+
+    <button class="btn btn-gold" onclick="submitWithdraw()">ارسال درخواست</button>
+    <div id="wd-err" class="err hidden"></div>
+
+    <div id="wd-history" style="margin-top:22px;"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

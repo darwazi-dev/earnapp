@@ -16,6 +16,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------- Simple JSON "database" ----------
 function readDB() {
+  const dir = path.dirname(DB_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   if (!fs.existsSync(DB_FILE)) {
     const initial = { users: [], withdrawals: [], nextUserId: 1, nextWithdrawId: 1 };
     fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
@@ -24,6 +26,8 @@ function readDB() {
   return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
 }
 function writeDB(db) {
+  const dir = path.dirname(DB_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
 }
 
@@ -86,7 +90,7 @@ app.post('/api/register', (req, res) => {
     phone,
     passwordHash: hash,
     balance: 0,
-    completedTasks: {}, // { 'YYYY-MM-DD': [taskId, ...] }
+    completedTasks: {},
     createdAt: new Date().toISOString(),
   };
   db.users.push(user);
@@ -171,7 +175,7 @@ app.post('/api/withdraw', authRequired, (req, res) => {
     amount: amt,
     method,
     account,
-    status: 'pending', // pending -> approved | rejected
+    status: 'pending',
     createdAt: new Date().toISOString(),
   };
   db.withdrawals.push(withdrawal);
@@ -222,7 +226,7 @@ app.post('/api/admin/withdrawals/:id/reject', adminRequired, (req, res) => {
   const w = db.withdrawals.find(x => x.id === Number(req.params.id));
   if (!w) return res.status(404).json({ error: 'یافت نشد' });
   const user = findUser(db, w.userId);
-  if (user) user.balance += w.amount; // refund
+  if (user) user.balance += w.amount;
   w.status = 'rejected';
   w.resolvedAt = new Date().toISOString();
   writeDB(db);

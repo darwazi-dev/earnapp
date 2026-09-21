@@ -28,8 +28,8 @@ const MIN_WITHDRAW_AFN = 500;
 const CPX_APP_ID =
   process.env.CPX_APP_ID || '36387';
 
-const CPX_SECURE_HASH =
-  process.env.CPX_SECURE_HASH || '';
+const CPX_SECURE_HASH = '88dod7wAvusHXxDlTWZcSj9wiG2cLkiV';
+
 
 const AFN_PER_USD =
   Number(process.env.AFN_PER_USD) || 68;

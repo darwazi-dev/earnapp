@@ -1452,22 +1452,204 @@ app.use(
 // START SERVER
 // ============================================================
 
-app.listen(
-  PORT,
-  '0.0.0.0',
-  () => {
+// ============================================================
+// TASKS
+// ============================================================
 
-    console.log(
-      `LEVELUP server running on port ${PORT}`
-    );
-
-    console.log(
-      `Port: ${PORT}`
-    );
-
-    console.log(
-      `CPX App ID: ${CPX_APP_ID}`
-    );
-
+app.get('/api/tasks', authRequired, (req, res) => {
+  try {
+    const db = readDB();
+    const user = findUser(db, req.userId);
+    if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+    const doneToday = user.completedTasks[todayKey()] || [];
+    const tasks = MOCK_TASKS.map(t => ({ ...t, done: doneToday.includes(t.id) }));
+    return res.json({ tasks, balance: user.balance });
+  } catch (error) {
+    return res.status(500).json({ error: 'خطای سرور' });
   }
-);
+});
+
+app.post('/api/tasks/:id/complete', authRequired, (req, res) => {
+  try {
+    const db = readDB();
+    const user = findUser(db, req.userId);
+    if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+    const task = MOCK_TASKS.find(t => t.id === req.params.id);
+    if (!task) return res.status(404).json({ error: 'این تسک وجود ندارد' });
+
+    const key = todayKey();
+    if (!user.completedTasks[key]) user.completedTasks[key] = [];
+    if (user.completedTasks[key].includes(task.id)) {
+      return res.status(400).json({ error: 'این تسک را امروز قبلاً انجام داده‌اید' });
+    }
+    user.completedTasks[key].push(task.id);
+    user.balance += task.reward;
+    writeDB(db);
+    return res.json({ balance: user.balance, reward: task.reward });
+  } catch (error) {
+    return res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+// ============================================================
+// CPX RESEARCH: OFFERWALL LINK & POSTBACK
+// ============================================================
+
+app.get('/api/cpx/offerwall-link', authRequired, (req, res) => {
+  try {
+    const db = readDB();
+    const user = findUser(db, req.userId);
+    if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+    const userIdStr = String(user.id);
+    const secureHash = md5(`${userIdStr}${CPX_SECURE_HASH}`);
+    const url = `https://cpx-research.com{CPX_APP_ID}&ext_user_id=${userIdStr}&secure_hash=${secureHash}&username=${encodeURIComponent(user.name)}`;
+    return res.json({ url });
+  } catch (error) {
+    return res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+app.get('/api/cpx/postback', (req, res) => {
+  try {
+    const { status, trans_id, user_id, amount_usd, hash } = req.query;
+    if (!status || !trans_id || !user_id || !hash) {
+      return res.status(400).send('missing params');
+    }
+
+    const expectedHash = md5(`${trans_id}${CPX_SECURE_HASH}`);
+    if (hash.toLowerCase() !== expectedHash.toLowerCase()) {
+      return res.status(403).send('invalid hash');
+    }
+
+    const db = readDB();
+    const user = findUser(db, Number(user_id));
+    if (!user) return res.status(404).send('user not found');
+
+    const existing = db.cpxTransactions.find(t => t.trans_id === trans_id);
+
+    if (String(status) === '1') {
+      if (existing) return res.send('1');
+      const amountAfn = Math.round(Number(amount_usd) * AFN_PER_USD * USER_SHARE);
+      user.balance += amountAfn;
+      db.cpxTransactions.push({ trans_id, userId: user.id, amountAfn, status: 'completed', createdAt: new Date().toISOString() });
+      writeDB(db);
+    } else if (String(status) === '2') {
+      if (existing && existing.status === 'completed') {
+        user.balance = Math.max(0, user.balance - existing.amountAfn);
+        existing.status = 'reversed';
+        writeDB(db);
+      }
+    }
+
+    return res.send('1');
+  } catch (error) {
+    return res.status(500).send('internal error');
+  }
+});
+
+// ============================================================
+// WALLET & WITHDRAWALS
+// ============================================================
+
+app.get('/api/wallet', authRequired, (req, res) => {
+  try {
+    const db = readDB();
+    const user = findUser(db, req.userId);
+    if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+    const myWithdrawals = db.withdrawals
+      .filter(w => w.userId === user.id)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    return res.json({ balance: user.balance, withdrawals: myWithdrawals });
+  } catch (error) {
+    return res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+app.post('/api/withdraw', authRequired, (req, res) => {
+  try {
+    const { amount, paymentMethod, accountDetails } = req.body;
+    if (!amount || !paymentMethod || !accountDetails) {
+      return res.status(400).json({ error: 'مبلغ، روش پرداخت و مشخصات حساب الزامی است' });
+    }
+    const withdrawAmount = Number(amount);
+    if (withdrawAmount < MIN_WITHDRAW_AFN) {
+      return res.status(400).json({ error: `حداقل مبلغ برداشت ${MIN_WITHDRAW_AFN} افغانی است` });
+    }
+    const db = readDB();
+    const user = findUser(db, req.userId);
+    if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+    if (user.balance < withdrawAmount) {
+      return res.status(400).json({ error: 'موجودي کافی نیست' });
+    }
+
+    user.balance -= withdrawAmount;
+    const withdrawal = {
+      id: db.nextWithdrawId++,
+      userId: user.id,
+      userName: user.name,
+      userPhone: user.phone,
+      amount: withdrawAmount,
+      paymentMethod,
+      accountDetails,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    };
+    db.withdrawals.push(withdrawal);
+    writeDB(db);
+    return res.json({ balance: user.balance, withdrawal });
+  } catch (error) {
+    return res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+// ============================================================
+// ADMIN PANEL API
+// ============================================================
+
+app.get('/api/admin/withdrawals', adminRequired, (req, res) => {
+  try {
+    const db = readDB();
+    return res.json({ withdrawals: db.withdrawals });
+  } catch (error) {
+    return res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+app.post('/api/admin/withdrawals/:id/approve', adminRequired, (req, res) => {
+  try {
+    const db = readDB();
+    const reqId = Number(req.params.id);
+    const w = db.withdrawals.find(item => item.id === reqId);
+    if (!w) return res.status(404).json({ error: 'درخواست یافت نشد' });
+    w.status = 'approved';
+    writeDB(db);
+    return res.json({ success: true, withdrawal: w });
+  } catch (error) {
+    return res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+app.post('/api/admin/withdrawals/:id/reject', adminRequired, (req, res) => {
+  try {
+    const db = readDB();
+    const reqId = Number(req.params.id);
+    const w = db.withdrawals.find(item => item.id === reqId);
+    if (!w) return res.status(404).json({ error: 'درخواست یافت نشد' });
+    if (w.status === 'pending') {
+      const user = findUser(db, w.userId);
+      if (user) user.balance += w.amount;
+    }
+    w.status = 'rejected';
+    writeDB(db);
+    return res.json({ success: true, withdrawal: w });
+  } catch (error) {
+    return res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+// ---------- START SERVER ----------
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`LEVELUP server running on port ${PORT}`);
+  console.log(`Port: ${PORT}`);
+  console.log(`CPX App ID: ${CPX_APP_ID}`);
+});

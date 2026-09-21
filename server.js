@@ -1,10 +1,12 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'karyab-secure-jwt-token-key-2026';
 const DB_FILE = path.join(__dirname, 'data', 'db.json');
 const MIN_WITHDRAW_AFN = 500;
 
@@ -19,10 +21,6 @@ function md5(str) {
 
 function hashPassword(password) {
   return crypto.createHash('sha256').update(String(password)).digest('hex');
-}
-
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 app.use(express.json());
@@ -43,11 +41,7 @@ function readDB() {
     }
     const raw = fs.readFileSync(DB_FILE, 'utf8');
     if (!raw.trim()) return createInitialDB();
-    const db = JSON.parse(raw);
-    if (!Array.isArray(db.users)) db.users = [];
-    if (!Array.isArray(db.withdrawals)) db.withdrawals = [];
-    if (!Array.isArray(db.cpxTransactions)) db.cpxTransactions = [];
-    return db;
+    return JSON.parse(raw);
   } catch (e) {
     return createInitialDB();
   }
@@ -65,35 +59,24 @@ function findUser(db, userId) {
   return db.users.find(u => Number(u.id) === Number(userId));
 }
 
-// ============================================================
-// ROUTES
-// ============================================================
-
 app.post('/api/register', (req, res) => {
   try {
     const { name, phone, password, question, answer } = req.body;
     if (!name || !phone || !password) return res.status(400).json({ error: 'اطلاعات ناقص است' });
-    
     const db = readDB();
     if (db.users.find(u => u.phone === phone)) return res.status(400).json({ error: 'این شماره قبلاً ثبت‌نام کرده است' });
     
     const user = { 
-      id: db.nextUserId++, 
-      name, 
-      phone, 
-      passwordHash: hashPassword(password), 
-      balance: 0,
+      id: db.nextUserId++, name, phone, passwordHash: hashPassword(password), balance: 0,
       securityQuestion: question || "شهر تولد شما چیست؟",
       securityAnswerHash: answer ? crypto.createHash('sha256').update(String(answer).trim().toLowerCase()).digest('hex') : null,
       completedTasks: {}
     };
-    
     db.users.push(user);
     writeDB(db);
-    res.json({ token: String(user.id), name: user.name, balance: user.balance });
-  } catch (e) {
-    res.status(500).json({ error: 'خطای سرور' });
-  }
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, name: user.name, balance: user.balance });
+  } catch (e) { res.status(500).json({ error: 'خطای سرور' }); }
 });
 
 app.post('/api/login', (req, res) => {
@@ -102,91 +85,41 @@ app.post('/api/login', (req, res) => {
     const db = readDB();
     const user = db.users.find(u => u.phone === phone && u.passwordHash === hashPassword(password));
     if (!user) return res.status(400).json({ error: 'شماره یا رمز عبور اشتباه است' });
-    res.json({ token: String(user.id), name: user.name, balance: user.balance });
-  } catch (e) {
-    res.status(500).json({ error: 'خطای سرور' });
-  }
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, name: user.name, balance: user.balance });
+  } catch (e) { res.status(500).json({ error: 'خطای سرور' }); }
 });
 
-app.post('/api/forgot-password/check-phone', (req, res) => {
-  try {
-    const { phone } = req.body;
-    if (!phone) return res.status(400).json({ error: 'شماره تلفن را وارد کنید' });
-    
-    const db = readDB();
-    const user = db.users.find(u => String(u.phone) === String(phone).trim());
-    if (!user) return res.status(404).json({ error: 'کاربری با این شماره یافت نشد' });
-    
-    res.json({ question: user.securityQuestion || "شهر تولد شما چیست؟" });
-  } catch (e) {
-    res.status(500).json({ error: 'خطای سرور' });
-  }
-});
-
-app.post('/api/forgot-password/reset', (req, res) => {
-  try {
-    const { phone, answer, newPassword } = req.body;
-    if (!phone || !answer || !newPassword) return res.status(400).json({ error: 'فیلدها ناقص است' });
-    
-    const db = readDB();
-    const user = db.users.find(u => String(u.phone) === String(phone).trim());
-    if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
-
-    const inputHash = crypto.createHash('sha256').update(String(answer).trim().toLowerCase()).digest('hex');
-    if (user.securityAnswerHash && user.securityAnswerHash !== inputHash) {
-      return res.status(400).json({ error: 'پاسخ سوال امنیتی اشتباه است' });
-    }
-
-    user.passwordHash = hashPassword(newPassword);
-    writeDB(db);
-    res.json({ token: String(user.id), name: user.name, balance: user.balance });
-  } catch (e) {
-    res.status(500).json({ error: 'خطای سرور' });
-  }
-});
-
-// لود کردن تسک‌ها بدون ایجاد خطا و هماهنگ با توکن فرانت‌اَند
 app.get('/api/tasks', (req, res) => {
   try {
     const header = req.headers.authorization || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
     if (!token) return res.status(401).json({ error: 'وارد نشده‌اید' });
-
+    const decoded = jwt.verify(token, JWT_SECRET);
     const db = readDB();
-    const user = findUser(db, Number(token));
+    const user = findUser(db, decoded.userId);
     if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
-
     res.json({ tasks: [], balance: user.balance || 0 });
-  } catch (e) {
-    res.status(500).json({ error: 'خطای سرور' });
-  }
+  } catch (e) { res.status(401).json({ error: 'توکن نامعتبر' }); }
 });
 
-// مسیر فوق‌العاده حساس تولید لینک هوشمند آفر وال زنده برای هر کاربر
 app.get('/api/cpx/offerwall-link', (req, res) => {
   try {
     const header = req.headers.authorization || '';
     const token = header.startsWith('Bearer ') ? header.slice(7) : null;
     if (!token) return res.status(401).json({ error: 'وارد نشده‌اید' });
-
+    const decoded = jwt.verify(token, JWT_SECRET);
     const db = readDB();
-    const user = findUser(db, Number(token));
+    const user = findUser(db, decoded.userId);
     if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
 
     const userIdStr = String(user.id);
     const secureHash = md5(`${userIdStr}${CPX_SECURE_HASH}`);
     const url = `https://cpx-research.com{CPX_APP_ID}&ext_user_id=${userIdStr}&secure_hash=${secureHash}&username=${encodeURIComponent(user.name)}`;
-    
     res.json({ url });
-  } catch (e) {
-    res.status(500).json({ error: 'خطای سرور' });
-  }
+  } catch (e) { res.status(500).json({ error: 'خطای سرور' }); }
 });
 
-app.get('/api/cpx/postback', (req, res) => {
-  return res.status(200).send('1');
-});
+app.get('/api/cpx/postback', (req, res) => { return res.status(200).send('1'); });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server started on port ${PORT}`);
-});
+app.listen(PORT, '0.0.0.0', () => { console.log(`Server running on port ${PORT}`); });

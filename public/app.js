@@ -80,12 +80,45 @@ async function enterApp() {
   await loadTasks();
 }
 
+// سیستم دریافت خودکار لینک درآمدزایی واقعی مخصوص هر کاربر از CPX
+async function openCpxOfferwall() {
+  try {
+    const data = await api('/api/cpx/offerwall-link');
+    if (data && data.url) {
+      window.open(data.url, '_blank');
+    } else {
+      toast('خطا در دریافت لینک کسب درآمد زنده');
+    }
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
 async function loadTasks() {
   try {
     const data = await api('/api/tasks');
     document.getElementById('balance').textContent = data.balance;
     const list = document.getElementById('tasks-list');
     list.innerHTML = '';
+    
+    // ۱. ایجاد باکس طلایی کسب درآمد واقعی زنده (CPX Research) در بالاترین بخش لیست تسک‌ها
+    const cpxDiv = document.createElement('div');
+    cpxDiv.className = 'task real-cpx-task';
+    cpxDiv.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%)';
+    cpxDiv.style.border = '1px solid #ffeeba';
+    cpxDiv.innerHTML = `
+      <div class="task-icon">💰</div>
+      <div class="task-info">
+        <h3 style="color:#856404">دیوار درآمد واقعی (نظرسنجی زنده)</h3>
+        <p style="color:#856404">تکمیل هر نظرسنجی = واریز آنی پول نقد به حساب افغانی شما</p>
+      </div>
+      <div class="task-reward" style="color:#856404">؋ عالی<small>نامحدود</small></div>
+      <button class="task-btn" style="background:#text; color:#fff; font-weight:bold" onclick="openCpxOfferwall()">
+        کسب درآمد
+      </button>`;
+    list.appendChild(cpxDiv);
+
+    // ۲. لود کردن بقیه تسک‌های فرعی و آزمایشی برنامه
     data.tasks.forEach(t => {
       const div = document.createElement('div');
       div.className = 'task' + (t.done ? ' done' : '');

@@ -1,6 +1,7 @@
 const API = '';
 let TOKEN = localStorage.getItem('token') || null;
 let USER_NAME = localStorage.getItem('userName') || '';
+let FORGOT_PHONE = ''; // ذخیره موقت شماره برای گام دوم بازیابی
 
 function showView(name) {
   document.getElementById('view-login').classList.add('hidden');
@@ -22,7 +23,8 @@ function showErr(id, msg) {
   el.classList.remove('hidden');
 }
 function hideErr(id) {
-  document.getElementById(id).classList.add('hidden');
+  const el = document.getElementById(id);
+  if (el) el.classList.add('hidden');
 }
 
 async function api(path, opts = {}) {
@@ -55,9 +57,12 @@ async function doRegister() {
   const name = document.getElementById('reg-name').value.trim();
   const phone = document.getElementById('reg-phone').value.trim();
   const password = document.getElementById('reg-password').value;
-  if (!name || !phone || !password) return showErr('register-err', 'همه فیلدها لازم است');
+  const question = document.getElementById('reg-question').value;
+  const answer = document.getElementById('reg-answer').value.trim();
+
+  if (!name || !phone || !password || !answer) return showErr('register-err', 'همه فیلدها از جمله پاسخ امنیتی لازم است');
   try {
-    const data = await api('/api/register', { method: 'POST', body: JSON.stringify({ name, phone, password }) });
+    const data = await api('/api/register', { method: 'POST', body: JSON.stringify({ name, phone, password, question, answer }) });
     TOKEN = data.token; USER_NAME = data.name;
     localStorage.setItem('token', TOKEN);
     localStorage.setItem('userName', USER_NAME);
@@ -80,7 +85,6 @@ async function enterApp() {
   await loadTasks();
 }
 
-// سیستم دریافت خودکار لینک درآمدزایی واقعی مخصوص هر کاربر از CPX
 async function openCpxOfferwall() {
   try {
     const data = await api('/api/cpx/offerwall-link');
@@ -101,7 +105,6 @@ async function loadTasks() {
     const list = document.getElementById('tasks-list');
     list.innerHTML = '';
     
-    // ۱. ایجاد باکس طلایی کسب درآمد واقعی زنده (CPX Research) در بالاترین بخش لیست تسک‌ها
     const cpxDiv = document.createElement('div');
     cpxDiv.className = 'task real-cpx-task';
     cpxDiv.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%)';
@@ -113,12 +116,11 @@ async function loadTasks() {
         <p style="color:#856404">تکمیل هر نظرسنجی = واریز آنی پول نقد به حساب افغانی شما</p>
       </div>
       <div class="task-reward" style="color:#856404">؋ عالی<small>نامحدود</small></div>
-      <button class="task-btn" style="background:#text; color:#fff; font-weight:bold" onclick="openCpxOfferwall()">
+      <button class="task-btn" style="background:#056839; color:#fff; font-weight:bold" onclick="openCpxOfferwall()">
         کسب درآمد
       </button>`;
     list.appendChild(cpxDiv);
 
-    // ۲. لود کردن بقیه تسک‌های فرعی و آزمایشی برنامه
     data.tasks.forEach(t => {
       const div = document.createElement('div');
       div.className = 'task' + (t.done ? ' done' : '');
@@ -148,6 +150,55 @@ async function completeTask(id) {
     await loadTasks();
   } catch (e) {
     toast(e.message);
+  }
+}
+
+// کدهای مربوط به مدیریت مودال فراموشی رمز عبور
+function openForgotModal() {
+  hideErr('forgot-err');
+  document.getElementById('forgot-modal').classList.remove('hidden');
+  document.getElementById('forgot-step1').classList.remove('hidden');
+  document.getElementById('forgot-step2').classList.add('hidden');
+  document.getElementById('forgot-phone').value = '';
+  document.getElementById('forgot-answer').value = '';
+  document.getElementById('forgot-new-password').value = '';
+}
+
+function closeForgotModal() {
+  document.getElementById('forgot-modal').classList.add('hidden');
+}
+
+async function checkForgotPhone() {
+  hideErr('forgot-err');
+  const phone = document.getElementById('forgot-phone').value.trim();
+  if (!phone) return showErr('forgot-err', 'شماره تلفن را وارد کنید');
+  try {
+    const data = await api('/api/forgot-password/check-phone', { method: 'POST', body: JSON.stringify({ phone }) });
+    FORGOT_PHONE = phone;
+    document.getElementById('forgot-question-text').textContent = data.question;
+    document.getElementById('forgot-step1').classList.add('hidden');
+    document.getElementById('forgot-step2').classList.remove('hidden');
+  } catch (e) {
+    showErr('forgot-err', e.message);
+  }
+}
+
+async function submitResetPassword() {
+  hideErr('forgot-err');
+  const answer = document.getElementById('forgot-answer').value.trim();
+  const newPassword = document.getElementById('forgot-new-password').value;
+  if (!answer || !newPassword) return showErr('forgot-err', 'پاسخ سوال امنیتی و رمز جدید را وارد کنید');
+  if (newPassword.length < 4) return showErr('forgot-err', 'رمز جدید باید حداقل ۴ کاراکتر باشد');
+  try {
+    const data = await api('/api/forgot-password/reset', { method: 'POST', body: JSON.stringify({ phone: FORGOT_PHONE, answer, newPassword }) });
+    closeForgotModal();
+    toast('رمز عبور با موفقیت تغییر کرد');
+    TOKEN = data.token; USER_NAME = data.name;
+    localStorage.setItem('token', TOKEN);
+    localStorage.setItem('userName', USER_NAME);
+    enterApp();
+  } catch (e) {
+    showErr('forgot-err', e.message);
   }
 }
 

@@ -36,27 +36,28 @@ function createInitialDB() {
 }
 
 function readDB() {
-  const dir = path.dirname(DB_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(DB_FILE)) {
-    const initial = createInitialDB();
-    fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), 'utf8');
-    return initial;
-  }
   try {
+    const dir = path.dirname(DB_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    
+    if (!fs.existsSync(DB_FILE)) {
+      const initial = createInitialDB();
+      fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2), 'utf8');
+      return initial;
+    }
+
     const raw = fs.readFileSync(DB_FILE, 'utf8');
     if (!raw.trim()) return createInitialDB();
-    const db = JSON.parse(raw);
     
-    // اصلاح خودکار دیتابیس قدیمی برای جلوگیری از کرش سرور
+    const db = JSON.parse(raw);
     if (!Array.isArray(db.users)) db.users = [];
     if (!Array.isArray(db.withdrawals)) db.withdrawals = [];
     if (!Array.isArray(db.cpxTransactions)) db.cpxTransactions = [];
     if (!db.nextUserId) db.nextUserId = db.users.length + 1;
     if (!db.nextWithdrawId) db.nextWithdrawId = db.withdrawals.length + 1;
-    
     return db;
   } catch (e) {
+    // ترفند اصلی: اگر هارد یا فایل قفل بود، یک حافظه موقت تازه بساز تا سرور کرش نکند
     return createInitialDB();
   }
 }
@@ -246,4 +247,3 @@ app.post('/api/withdraw', authRequired, (req, res) => {
   const { amount, method, account } = req.body;
   if (!amount || !method || !account) return res.status(400).json({ error: 'اطلاعات ناقص' });
   const db = readDB();
-  const user = findUser(db, req.userId);

@@ -20,7 +20,6 @@ function md5(str) {
   return crypto.createHash('md5').update(String(str)).digest('hex');
 }
 
-// تابع امنیتی بومی برای هش کردن پسوردها بدون نیاز به پکیج خارجی bcryptjs
 function hashPassword(password) {
   return crypto.createHash('sha256').update(String(password)).digest('hex');
 }
@@ -46,12 +45,16 @@ function readDB() {
   }
   try {
     const raw = fs.readFileSync(DB_FILE, 'utf8');
+    if (!raw.trim()) return createInitialDB();
     const db = JSON.parse(raw);
+    
+    // اصلاح خودکار دیتابیس قدیمی برای جلوگیری از کرش سرور
     if (!Array.isArray(db.users)) db.users = [];
     if (!Array.isArray(db.withdrawals)) db.withdrawals = [];
     if (!Array.isArray(db.cpxTransactions)) db.cpxTransactions = [];
-    if (!db.nextUserId) db.nextUserId = 1;
-    if (!db.nextWithdrawId) db.nextWithdrawId = 1;
+    if (!db.nextUserId) db.nextUserId = db.users.length + 1;
+    if (!db.nextWithdrawId) db.nextWithdrawId = db.withdrawals.length + 1;
+    
     return db;
   } catch (e) {
     return createInitialDB();
@@ -59,9 +62,13 @@ function readDB() {
 }
 
 function writeDB(db) {
-  const dir = path.dirname(DB_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+  try {
+    const dir = path.dirname(DB_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
+  } catch (e) {
+    console.error("Error writing DB:", e);
+  }
 }
 
 function findUser(db, userId) {
@@ -240,6 +247,3 @@ app.post('/api/withdraw', authRequired, (req, res) => {
   if (!amount || !method || !account) return res.status(400).json({ error: 'اطلاعات ناقص' });
   const db = readDB();
   const user = findUser(db, req.userId);
-  if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
-  
-  const amt = Number(amount);

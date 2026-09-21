@@ -65,28 +65,91 @@ function findUser(db, userId) {
   return db.users.find(u => Number(u.id) === Number(userId));
 }
 
-const MOCK_TASKS = [
-  { id: 't1', title: 'نصب اپلیکیشن و باز کردن آن', desc: 'یک اپ را نصب کن و ۳۰ ثانیه باز نگه‌دار', reward: 35 },
-  { id: 't2', title: 'تکمیل یک سروی کوتاه', desc: 'به ۵ سوال ساده جواب بده', reward: 28 }
-];
+// ============================================================
+// ROUTES
+// ============================================================
 
 app.post('/api/register', (req, res) => {
-  const { name, phone, password } = req.body;
-  if (!name || !phone || !password) return res.status(400).json({ error: 'اطلاعات ناقص است' });
-  const db = readDB();
-  if (db.users.find(u => u.phone === phone)) return res.status(400).json({ error: 'این شماره قبلاً ثبت‌نام کرده است' });
-  const user = { id: db.nextUserId++, name, phone, passwordHash: hashPassword(password), balance: 0 };
-  db.users.push(user);
-  writeDB(db);
-  res.json({ token: String(user.id), name: user.name, balance: user.balance });
+  try {
+    const { name, phone, password, question, answer } = req.body;
+    if (!name || !phone || !password) return res.status(400).json({ error: 'اطلاعات ناقص است' });
+    
+    const db = readDB();
+    if (db.users.find(u => u.phone === phone)) return res.status(400).json({ error: 'این شماره قبلاً ثبت‌نام کرده است' });
+    
+    const user = { 
+      id: db.nextUserId++, 
+      name, 
+      phone, 
+      passwordHash: hashPassword(password), 
+      balance: 0,
+      securityQuestion: question || "شهر تولد شما چیست؟",
+      securityAnswerHash: answer ? crypto.createHash('sha256').update(String(answer).trim().toLowerCase()).digest('hex') : null,
+      completedTasks: {}
+    };
+    
+    db.users.push(user);
+    writeDB(db);
+    res.json({ token: String(user.id), name: user.name, balance: user.balance });
+  } catch (e) {
+    res.status(500).json({ error: 'خطای سرور' });
+  }
 });
 
 app.post('/api/login', (req, res) => {
-  const { phone, password } = req.body;
+  try {
+    const { phone, password } = req.body;
+    const db = readDB();
+    const user = db.users.find(u => u.phone === phone && u.passwordHash === hashPassword(password));
+    if (!user) return res.status(400).json({ error: 'شماره یا رمز عبور اشتباه است' });
+    res.json({ token: String(user.id), name: user.name, balance: user.balance });
+  } catch (e) {
+    res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+// مسیر بررسی وجود شماره و ارسال سوال امنیتی به برنامه
+app.post('/api/forgot-password/check-phone', (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'شماره تلفن را وارد کنید' });
+    
+    const db = readDB();
+    const user = db.users.find(u => String(u.phone) === String(phone).trim());
+    if (!user) return res.status(404).json({ error: 'کاربری با این شماره یافت نشد' });
+    
+    res.json({ question: user.securityQuestion || "شهر تولد شما چیست؟ (تنظیم پیشفرض)" });
+  } catch (e) {
+    res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+// مسیر تغییر پسورد پس از بررسی پاسخ سوال امنیتی
+app.post('/api/forgot-password/reset', (req, res) => {
+  try {
+    const { phone, answer, newPassword } = req.body;
+    if (!phone || !answer || !newPassword) return res.status(400).json({ error: 'فیلدها ناقص است' });
+    
+    const db = readDB();
+    const user = db.users.find(u => String(u.phone) === String(phone).trim());
+    if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+
+    const inputHash = crypto.createHash('sha256').update(String(answer).trim().toLowerCase()).digest('hex');
+    if (user.securityAnswerHash && user.securityAnswerHash !== inputHash) {
+      return res.status(400).json({ error: 'پاسخ سوال امنیتی اشتباه است' });
+    }
+
+    user.passwordHash = hashPassword(newPassword);
+    writeDB(db);
+    res.json({ token: String(user.id), name: user.name, balance: user.balance });
+  } catch (e) {
+    res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+app.get('/api/tasks', (req, res) => {
   const db = readDB();
-  const user = db.users.find(u => u.phone === phone && u.passwordHash === hashPassword(password));
-  if (!user) return res.status(400).json({ error: 'شماره یا رمز عبور اشتباه است' });
-  res.json({ token: String(user.id), name: user.name, balance: user.balance });
+  res.json({ tasks: [], balance: 0 });
 });
 
 app.get('/api/cpx/postback', (req, res) => {

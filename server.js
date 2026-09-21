@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -10,6 +11,16 @@ const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const DB_FILE = path.join(__dirname, 'data', 'db.json');
 const MIN_WITHDRAW_AFN = 500;
+
+// ---------- CPX Research (real CPA network) config ----------
+const CPX_APP_ID = process.env.CPX_APP_ID || '36587';
+const CPX_SECURE_HASH = process.env.CPX_SECURE_HASH || ''; // set this in Railway Variables
+const AFN_PER_USD = Number(process.env.AFN_PER_USD || 68); // update if exchange rate moves
+const USER_SHARE = Number(process.env.USER_SHARE || 0.55); // fraction of AFN value credited to user, rest is platform revenue
+
+function md5(str) {
+  return crypto.createHash('md5').update(str).digest('hex');
+}
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -23,7 +34,9 @@ function readDB() {
     fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
     return initial;
   }
-  return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  const db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+  if (!db.cpxTransactions) db.cpxTransactions = []; // migrate older db.json files
+  return db;
 }
 function writeDB(db) {
   const dir = path.dirname(DB_FILE);
@@ -136,6 +149,52 @@ app.post('/api/tasks/:id/complete', authRequired, (req, res) => {
   user.balance += task.reward;
   writeDB(db);
   res.json({ balance: user.balance, reward: task.reward });
+});
+
+// ---------- CPX Research: real offerwall link ----------
+app.get('/api/cpx/offerwall-link', authRequired, (req, res) => {
+  const db = readDB();
+  const user = findUser(db, req.userId);
+  if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+  const userIdStr = String(user.id);
+  const secureHash = md5(`${userIdStr}${CPX_SECURE_HASH}`);
+  const url = `https://offers.cpx-research.com/index.php?app_id=${CPX_APP_ID}&ext_user_id=${userIdStr}&secure_hash=${secureHash}&username=${encodeURIComponent(user.name)}`;
+  res.json({ url });
+});
+
+// ---------- CPX Research: postback (server-to-server, called by CPX, not the browser) ----------
+app.get('/api/cpx/postback', (req, res) => {
+  const { status, trans_id, user_id, amount_usd, hash } = req.query;
+  if (!status || !trans_id || !user_id || !hash) {
+    return res.status(400).send('missing params');
+  }
+
+  const expectedHash = md5(`${trans_id}-${CPX_SECURE_HASH}`);
+  if (hash !== expectedHash) {
+    return res.status(403).send('invalid hash');
+  }
+
+  const db = readDB();
+  const user = findUser(db, Number(user_id));
+  if (!user) return res.status(404).send('user not found');
+
+  const existing = db.cpxTransactions.find(t => t.trans_id === trans_id);
+
+  if (String(status) === '1') {
+    if (existing) return res.send('1');
+    const amountAfn = Math.round(Number(amount_usd) * AFN_PER_USD * USER_SHARE);
+    user.balance += amountAfn;
+    db.cpxTransactions.push({ trans_id, userId: user.id, amountAfn, status: 'completed', createdAt: new Date().toISOString() });
+    writeDB(db);
+  } else if (String(status) === '2') {
+    if (existing && existing.status === 'completed') {
+      user.balance = Math.max(0, user.balance - existing.amountAfn);
+      existing.status = 'reversed';
+      writeDB(db);
+    }
+  }
+
+  res.send('1');
 });
 
 // ---------- Wallet & withdrawals ----------

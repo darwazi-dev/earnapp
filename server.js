@@ -10,7 +10,8 @@ const JWT_SECRET = process.env.JWT_SECRET || 'karyab-secure-jwt-token-key-2026';
 const DB_FILE = path.join(__dirname, 'data', 'db.json');
 const MIN_WITHDRAW_AFN = 500;
 
-const CPX_APP_ID = (process.env.CPX_APP_ID || '36387').trim();
+// اصلاح مستقیم شناسه برنامه جهت جلوگیری از تولید آدرس نامعتبر
+const CPX_APP_ID = '36387';
 const CPX_SECURE_HASH = 'MAb1fBtz6Y0TqrfpGkb0UQQ95w5ja4sD';
 const AFN_PER_USD = Number(process.env.AFN_PER_USD || 68);
 const USER_SHARE = Number(process.env.USER_SHARE || 0.55);

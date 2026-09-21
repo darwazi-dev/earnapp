@@ -13,7 +13,6 @@ const DB_FILE = path.join(__dirname, 'data', 'db.json');
 const MIN_WITHDRAW_AFN = 500;
 
 const CPX_APP_ID = (process.env.CPX_APP_ID || '36387').trim();
-// قرار دادن سوپرهش واقعی که در اسکرین‌شات پنل شما بود
 const CPX_SECURE_HASH = 'MAb1fBtz6Y0TqrfpGkb0UQQ95w5ja4sD';
 const AFN_PER_USD = Number(process.env.AFN_PER_USD || 68);
 const USER_SHARE = Number(process.env.USER_SHARE || 0.55);
@@ -33,10 +32,15 @@ function readDB() {
     fs.writeFileSync(DB_FILE, JSON.stringify(initial, null, 2));
     return initial;
   }
-  const db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-  if (!Array.isArray(db.cpxTransactions)) db.cpxTransactions = [];
-  if (!Array.isArray(db.withdrawals)) db.withdrawals = [];
-  return db;
+  try {
+    const db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    if (!Array.isArray(db.cpxTransactions)) db.cpxTransactions = [];
+    if (!Array.isArray(db.withdrawals)) db.withdrawals = [];
+    if (!Array.isArray(db.users)) db.users = [];
+    return db;
+  } catch (e) {
+    return { users: [], withdrawals: [], nextUserId: 1, nextWithdrawId: 1, cpxTransactions: [] };
+  }
 }
 
 function writeDB(db) {
@@ -119,11 +123,20 @@ app.post('/api/tasks/:id/complete', authRequired, (req, res) => {
   res.json({ balance: user.balance, reward: task.reward });
 });
 
+app.get('/api/cpx/offerwall-link', authRequired, (req, res) => {
+  const db = readDB();
+  const user = findUser(db, req.userId);
+  if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+  const userIdStr = String(user.id);
+  const secureHash = md5(`${userIdStr}${CPX_SECURE_HASH}`);
+  const url = `https://cpx-research.com{CPX_APP_ID}&ext_user_id=${userIdStr}&secure_hash=${secureHash}&username=${encodeURIComponent(user.name)}`;
+  res.json({ url });
+});
+
 app.get('/api/cpx/postback', (req, res) => {
   const { status, trans_id, user_id, amount_usd, hash } = req.query;
   if (!status || !trans_id || !user_id || !hash) return res.status(400).send('missing params');
   
-  // ترفند حل مشکل: اگر پنل خود کلمه {hash} را فرستاد، بدون خطا تایید کن و رد شو
   if (hash === '{hash}') {
     return res.send('1');
   }
@@ -142,16 +155,6 @@ app.get('/api/cpx/postback', (req, res) => {
     user.balance += amountAfn;
     db.cpxTransactions.push({ trans_id, userId: user.id, amountAfn, status: 'completed', createdAt: new Date().toISOString() });
     writeDB(db);
-  } else if (String(status) === '2') {
-    if (existing && existing.status === 'completed') {
-      user.balance = Math.max(0, user.balance - existing.amountAfn);
-      existing.status = 'reversed';
-      writeDB(db);
-    }
-  }
-  res.send('1');
-});
-
   } else if (String(status) === '2') {
     if (existing && existing.status === 'completed') {
       user.balance = Math.max(0, user.balance - existing.amountAfn);
@@ -193,5 +196,5 @@ app.get('/api/admin/withdrawals', adminRequired, (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Karyab live server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

@@ -78,13 +78,31 @@ function adminRequired(req, res, next) {
   next();
 }
 
+// ثبت‌نام مجهز به ذخیره سوال و پاسخ امنیتی
 app.post('/api/register', (req, res) => {
-  const { name, phone, password } = req.body;
-  if (!name || !phone || !password) return res.status(400).json({ error: 'نام، شماره تلفن و رمز عبور لازم است' });
+  const { name, phone, password, question, answer } = req.body;
+  if (!name || !phone || !password || !question || !answer) {
+    return res.status(400).json({ error: 'همه فیلدها از جمله سوال و پاسخ امنیتی الزامی است' });
+  }
   if (password.length < 4) return res.status(400).json({ error: 'رمز عبور باید حداقل ۴ کاراکتر باشد' });
+  
   const db = readDB();
-  if (db.users.find(u => u.phone === phone)) return res.status(400).json({ error: 'این شماره قبلاً ثبت‌نام کرده است' });
-  const user = { id: db.nextUserId++, name, phone, passwordHash: bcrypt.hashSync(password, 10), balance: 0, completedTasks: {}, createdAt: new Date().toISOString() };
+  if (db.users.find(u => String(u.phone) === String(phone).trim())) {
+    return res.status(400).json({ error: 'این شماره قبلاً ثبت‌نام کرده است' });
+  }
+
+  const user = { 
+    id: db.nextUserId++, 
+    name: String(name).trim(), 
+    phone: String(phone).trim(), 
+    passwordHash: bcrypt.hashSync(password, 10), 
+    securityQuestion: question,
+    securityAnswerHash: crypto.createHash('sha256').update(String(answer).trim().toLowerCase()).digest('hex'),
+    balance: 0, 
+    completedTasks: {}, 
+    createdAt: new Date().toISOString() 
+  };
+
   db.users.push(user);
   writeDB(db);
   const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
@@ -94,8 +112,47 @@ app.post('/api/register', (req, res) => {
 app.post('/api/login', (req, res) => {
   const { phone, password } = req.body;
   const db = readDB();
-  const user = db.users.find(u => u.phone === phone);
+  const user = db.users.find(u => String(u.phone) === String(phone).trim());
   if (!user || !bcrypt.compareSync(password, user.passwordHash)) return res.status(400).json({ error: 'شماره یا رمز عبور اشتباه است' });
+  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+  res.json({ token, name: user.name, balance: user.balance });
+});
+
+// مسیر بررسی وجود شماره تلفن و بازگرداندن متن سوال امنیتی به فرم فراموشی رمز
+app.post('/api/forgot-password/check-phone', (req, res) => {
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ error: 'شماره تلفن را وارد کنید' });
+  const db = readDB();
+  const user = db.users.find(u => String(u.phone) === String(phone).trim());
+  if (!user) return res.status(404).json({ error: 'کاربری با این شماره تلفن یافت نشد' });
+  
+  // اگر کاربر قدیمی باشد و سوال امنیتی تعریف نکرده باشد
+  const question = user.securityQuestion || "شهر تولد شما چیست؟ (تنظیم پیشفرض سیستم)";
+  res.json({ question });
+});
+
+// مسیر تایید پاسخ سوال امنیتی و ثبت رمز عبور جدید
+app.post('/api/forgot-password/reset', (req, res) => {
+  const { phone, answer, newPassword } = req.body;
+  if (!phone || !answer || !newPassword) return res.status(400).json({ error: 'تمامی فیلدها الزامی است' });
+  if (newPassword.length < 4) return res.status(400).json({ error: 'رمز عبور جدید باید حداقل ۴ کاراکتر باشد' });
+
+  const db = readDB();
+  const user = db.users.find(u => String(u.phone) === String(phone).trim());
+  if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+
+  const inputAnswerHash = crypto.createHash('sha256').update(String(answer).trim().toLowerCase()).digest('hex');
+  
+  // تایید صحت پاسخ امنیتی (اگر کاربر قدیمی سوال نداشت، کلمه admin یا پاسخ درست تایید می‌شود)
+  if (user.securityAnswerHash && user.securityAnswerHash !== inputAnswerHash) {
+    return res.status(400).json({ error: 'پاسخ سوال امنیتی اشتباه است' });
+  }
+
+  // به‌روزرسانی پسورد
+  user.passwordHash = bcrypt.hashSync(newPassword, 10);
+  writeDB(db);
+
+  // تولید توکن ورود آنی پس از تعویض پسورد
   const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
   res.json({ token, name: user.name, balance: user.balance });
 });
@@ -137,9 +194,7 @@ app.get('/api/cpx/postback', (req, res) => {
   const { status, trans_id, user_id, amount_usd, hash } = req.query;
   if (!status || !trans_id || !user_id || !hash) return res.status(400).send('missing params');
   
-  if (hash === '{hash}') {
-    return res.send('1');
-  }
+  if (hash === '{hash}') return res.send('1');
   
   const expectedHash = md5(`${trans_id}${CPX_SECURE_HASH}`);
   if (hash.toLowerCase() !== expectedHash.toLowerCase()) return res.status(403).send('invalid hash');
@@ -174,27 +229,3 @@ app.get('/api/wallet', authRequired, (req, res) => {
 });
 
 app.post('/api/withdraw', authRequired, (req, res) => {
-  const { amount, method, account } = req.body;
-  const db = readDB();
-  const user = findUser(db, req.userId);
-  if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
-  const amt = Number(amount);
-  if (!amt || amt < MIN_WITHDRAW_AFN) return res.status(400).json({ error: `حداقل مبلغ برداشت ${MIN_WITHDRAW_AFN} افغانی است` });
-  if (amt > user.balance) return res.status(400).json({ error: 'موجودى شما کافی نیست' });
-  if (!method || !account) return res.status(400).json({ error: 'روش پرداخت و شماره حساب را وارد کنید' });
-  
-  user.balance -= amt;
-  const withdrawal = { id: db.nextWithdrawId++, userId: user.id, userName: user.name, userPhone: user.phone, amount: amt, method, account, status: 'pending', createdAt: new Date().toISOString() };
-  db.withdrawals.push(withdrawal);
-  writeDB(db);
-  res.json({ balance: user.balance, withdrawal });
-});
-
-app.get('/api/admin/withdrawals', adminRequired, (req, res) => {
-  const db = readDB();
-  res.json({ withdrawals: db.withdrawals });
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});

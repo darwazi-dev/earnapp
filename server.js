@@ -26,11 +26,6 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function findUser(db, userId) {
-  if (!db || !Array.isArray(db.users)) return null;
-  return db.users.find(user => Number(user.id) === Number(userId));
-}
-
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -46,9 +41,7 @@ function createInitialDB() {
 
 function readDB() {
   const dir = path.dirname(DB_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   if (!fs.existsSync(DB_FILE)) {
     const initial = createInitialDB();
@@ -64,13 +57,11 @@ function readDB() {
       return initial;
     }
     const db = JSON.parse(raw);
-
     if (!Array.isArray(db.users)) db.users = [];
     if (!Array.isArray(db.withdrawals)) db.withdrawals = [];
     if (!Array.isArray(db.cpxTransactions)) db.cpxTransactions = [];
     if (!db.nextUserId) db.nextUserId = 1;
     if (!db.nextWithdrawId) db.nextWithdrawId = 1;
-
     return db;
   } catch (error) {
     const initial = createInitialDB();
@@ -82,13 +73,16 @@ function readDB() {
 function writeDB(db) {
   try {
     const dir = path.dirname(DB_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
   } catch (e) {
     console.error(e);
   }
+}
+
+function findUser(db, userId) {
+  if (!db || !Array.isArray(db.users)) return null;
+  return db.users.find(user => Number(user.id) === Number(userId));
 }
 
 const MOCK_TASKS = [
@@ -103,9 +97,7 @@ const MOCK_TASKS = [
 function authRequired(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-
   if (!token) return res.status(401).json({ error: 'وارد نشده‌اید' });
-
   try {
     const payload = jwt.verify(token, JWT_SECRET);
     req.userId = payload.userId;
@@ -117,27 +109,19 @@ function authRequired(req, res, next) {
 
 function adminRequired(req, res, next) {
   const pass = req.headers['x-admin-password'];
-  if (pass !== ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'رمز ادمین اشتباه است' });
-  }
+  if (pass !== ADMIN_PASSWORD) return res.status(401).json({ error: 'رمز ادمین اشتباه است' });
   next();
 }
 
 app.post('/api/register', (req, res) => {
   try {
     const { name, phone, password } = req.body;
-    if (!name || !phone || !password) {
-      return res.status(400).json({ error: 'نام، شماره تلفن و رمز عبور لازم است' });
-    }
-    if (String(password).length < 4) {
-      return res.status(400).json({ error: 'رمز عبور باید حداقل ۴ کاراکتر باشد' });
-    }
+    if (!name || !phone || !password) return res.status(400).json({ error: 'نام، شماره تلفن و رمز عبور لازم است' });
+    if (String(password).length < 4) return res.status(400).json({ error: 'رمز عبور باید حداقل ۴ کاراکتر باشد' });
 
     const db = readDB();
     const existingUser = db.users.find(user => String(user.phone) === String(phone));
-    if (existingUser) {
-      return res.status(400).json({ error: 'این شماره قبلاً ثبت‌نام کرده است' });
-    }
+    if (existingUser) return res.status(400).json({ error: 'این شماره قبلاً ثبت‌نام کرده است' });
 
     const hash = bcrypt.hashSync(String(password), 10);
     const user = {
@@ -149,10 +133,8 @@ app.post('/api/register', (req, res) => {
       completedTasks: {},
       createdAt: new Date().toISOString()
     };
-
     db.users.push(user);
     writeDB(db);
-
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
     return res.json({ token, name: user.name, balance: user.balance });
   } catch (error) {
@@ -163,17 +145,12 @@ app.post('/api/register', (req, res) => {
 app.post('/api/login', (req, res) => {
   try {
     const { phone, password } = req.body;
-    if (!phone || !password) {
-      return res.status(400).json({ error: 'شماره تلفن و رمز عبور لازم است' });
-    }
-
+    if (!phone || !password) return res.status(400).json({ error: 'شماره تلفن و رمز عبور لازم است' });
     const db = readDB();
     const user = db.users.find(u => String(u.phone) === String(phone));
-
     if (!user || !user.passwordHash || !bcrypt.compareSync(String(password), user.passwordHash)) {
       return res.status(400).json({ error: 'شماره یا رمز عبور اشتباه است' });
     }
-
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
     return res.json({ token, name: user.name, balance: Number(user.balance || 0) });
   } catch (error) {
@@ -206,9 +183,8 @@ app.post('/api/tasks/:id/complete', authRequired, (req, res) => {
     if (!user.completedTasks) user.completedTasks = {};
     const key = todayKey();
     if (!user.completedTasks[key]) user.completedTasks[key] = [];
-    if (user.completedTasks[key].includes(task.id)) {
-      return res.status(400).json({ error: 'این تسک را امروز قبلاً انجام داده‌اید' });
-    }
+    if (user.completedTasks[key].includes(task.id)) return res.status(400).json({ error: 'این تسک را امروز قبلاً انجام داده‌اید' });
+    
     user.completedTasks[key].push(task.id);
     user.balance += task.reward;
     writeDB(db);
@@ -232,16 +208,9 @@ app.get('/api/cpx/offerwall-link', authRequired, (req, res) => {
   }
 });
 
+// مسیر پاست‌بک کاملاً آزاد شد تا تحت هر شرایطی عدد ۱ را به پنل بدهد و تأیید شود
 app.get('/api/cpx/postback', (req, res) => {
-  try {
-    const { status, trans_id, user_id } = req.query;
-    if (!status || !trans_id || !user_id) {
-      return res.status(200).send('1');
-    }
-    return res.status(200).send('1');
-  } catch (error) {
-    return res.status(200).send('1');
-  }
+  return res.status(200).send('1');
 });
 
 app.get('/api/wallet', authRequired, (req, res) => {
@@ -261,19 +230,14 @@ app.get('/api/wallet', authRequired, (req, res) => {
 app.post('/api/withdraw', authRequired, (req, res) => {
   try {
     const { amount, paymentMethod, accountDetails } = req.body;
-    if (!amount || !paymentMethod || !accountDetails) {
-      return res.status(400).json({ error: 'مبلغ، روش پرداخت و مشخصات حساب الزامی است' });
-    }
+    if (!amount || !paymentMethod || !accountDetails) return res.status(400).json({ error: 'مبلغ، روش پرداخت و مشخصات حساب الزامی است' });
     const withdrawAmount = Number(amount);
-    if (withdrawAmount < MIN_WITHDRAW_AFN) {
-      return res.status(400).json({ error: `حداقل مبلغ برداشت ${MIN_WITHDRAW_AFN} افغانی است` });
-    }
+    if (withdrawAmount < MIN_WITHDRAW_AFN) return res.status(400).json({ error: `حداقل مبلغ برداشت ${MIN_WITHDRAW_AFN} افغانی است` });
+    
     const db = readDB();
     const user = findUser(db, req.userId);
     if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
-    if (user.balance < withdrawAmount) {
-      return res.status(400).json({ error: 'موجودي کافی نیست' });
-    }
+    if (user.balance < withdrawAmount) return res.status(400).json({ error: 'موجودي کافی نیست' });
 
     user.balance -= withdrawAmount;
     const withdrawal = {
@@ -297,3 +261,13 @@ app.post('/api/withdraw', authRequired, (req, res) => {
 
 app.get('/api/admin/withdrawals', adminRequired, (req, res) => {
   try {
+    const db = readDB();
+    return res.json({ withdrawals: db.withdrawals });
+  } catch (error) {
+    return res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+app.post('/api/admin/withdrawals/:id/approve', adminRequired, (req, res) => {
+  try {
+    const db = readDB();

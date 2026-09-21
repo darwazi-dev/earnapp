@@ -1,5 +1,4 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -70,6 +69,11 @@ function readDB() {
   }
 }
 
+// تابع هش پسورد بدون نیاز به پکیج خارجی bcryptjs
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
 function writeDB(db) {
   try {
     const dir = path.dirname(DB_FILE);
@@ -123,7 +127,7 @@ app.post('/api/register', (req, res) => {
     const existingUser = db.users.find(user => String(user.phone) === String(phone));
     if (existingUser) return res.status(400).json({ error: 'این شماره قبلاً ثبت‌نام کرده است' });
 
-    const hash = bcrypt.hashSync(String(password), 10);
+    const hash = hashPassword(String(password));
     const user = {
       id: db.nextUserId++,
       name: String(name).trim(),
@@ -148,7 +152,7 @@ app.post('/api/login', (req, res) => {
     if (!phone || !password) return res.status(400).json({ error: 'شماره تلفن و رمز عبور لازم است' });
     const db = readDB();
     const user = db.users.find(u => String(u.phone) === String(phone));
-    if (!user || !user.passwordHash || !bcrypt.compareSync(String(password), user.passwordHash)) {
+    if (!user || !user.passwordHash || user.passwordHash !== hashPassword(String(password))) {
       return res.status(400).json({ error: 'شماره یا رمز عبور اشتباه است' });
     }
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
@@ -208,7 +212,6 @@ app.get('/api/cpx/offerwall-link', authRequired, (req, res) => {
   }
 });
 
-// این مسیر پاست‌بک کاملاً باز و هماهنگ است و در عین حال اعتبار تراکنش را ثبت و ذخیره می‌کند
 app.get('/api/cpx/postback', (req, res) => {
   try {
     const { status, trans_id, user_id, amount_usd } = req.query;
@@ -261,4 +264,3 @@ app.post('/api/withdraw', authRequired, (req, res) => {
     if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
     if (user.balance < withdrawAmount) return res.status(400).json({ error: 'موجودي کافی نیست' });
 
-    user.balance -= withdrawAmount;

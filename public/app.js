@@ -1,7 +1,7 @@
 const API = '';
 let TOKEN = localStorage.getItem('token') || null;
 let USER_NAME = localStorage.getItem('userName') || '';
-let FORGOT_PHONE = ''; // ذخیره موقت شماره برای گام دوم بازیابی
+let FORGOT_PHONE = '';
 
 function showView(name) {
   document.getElementById('view-login').classList.add('hidden');
@@ -120,40 +120,12 @@ async function loadTasks() {
         کسب درآمد
       </button>`;
     list.appendChild(cpxDiv);
-
-    data.tasks.forEach(t => {
-      const div = document.createElement('div');
-      div.className = 'task' + (t.done ? ' done' : '');
-      div.innerHTML = `
-        <div class="task-icon">🎯</div>
-        <div class="task-info">
-          <h3>${t.title}</h3>
-          <p>${t.desc}</p>
-        </div>
-        <div class="task-reward">؋${t.reward}<small>پاداش</small></div>
-        <button class="task-btn" ${t.done ? 'disabled' : ''} onclick="completeTask('${t.id}')">
-          ${t.done ? 'انجام شد' : 'شروع'}
-        </button>`;
-      list.appendChild(div);
-    });
   } catch (e) {
-    if (e.message.includes('نشست')) { logout(); }
+    if (e.message.includes('نشست') || e.message.includes('pattern')) { logout(); }
     toast(e.message);
   }
 }
 
-async function completeTask(id) {
-  try {
-    const data = await api(`/api/tasks/${id}/complete`, { method: 'POST' });
-    document.getElementById('balance').textContent = data.balance;
-    toast(`آفرین! ${data.reward} افغانی به حساب شما اضافه شد`);
-    await loadTasks();
-  } catch (e) {
-    toast(e.message);
-  }
-}
-
-// کدهای مربوط به مدیریت مودال فراموشی رمز عبور
 function openForgotModal() {
   hideErr('forgot-err');
   document.getElementById('forgot-modal').classList.remove('hidden');
@@ -188,7 +160,7 @@ async function submitResetPassword() {
   const answer = document.getElementById('forgot-answer').value.trim();
   const newPassword = document.getElementById('forgot-new-password').value;
   if (!answer || !newPassword) return showErr('forgot-err', 'پاسخ سوال امنیتی و رمز جدید را وارد کنید');
-  if (newPassword.length < 4) return showErr('forgot-err', 'رمز جدید باید حداقل ۴ کاراکتر باشد');
+  if (newPassword.length < 4) return res.status(400).json({ error: 'رمز جدید باید حداقل ۴ کاراکتر باشد' });
   try {
     const data = await api('/api/forgot-password/reset', { method: 'POST', body: JSON.stringify({ phone: FORGOT_PHONE, answer, newPassword }) });
     closeForgotModal();
@@ -215,7 +187,7 @@ async function loadWallet() {
   try {
     const data = await api('/api/wallet');
     const hist = document.getElementById('wd-history');
-    if (!data.withdrawals.length) {
+    if (!data.withdrawals || !data.withdrawals.length) {
       hist.innerHTML = '<div class="hint">هنوز درخواست برداشتی ندارید</div>';
       return;
     }

@@ -108,7 +108,6 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-// مسیر بررسی وجود شماره و ارسال سوال امنیتی به برنامه
 app.post('/api/forgot-password/check-phone', (req, res) => {
   try {
     const { phone } = req.body;
@@ -118,13 +117,12 @@ app.post('/api/forgot-password/check-phone', (req, res) => {
     const user = db.users.find(u => String(u.phone) === String(phone).trim());
     if (!user) return res.status(404).json({ error: 'کاربری با این شماره یافت نشد' });
     
-    res.json({ question: user.securityQuestion || "شهر تولد شما چیست؟ (تنظیم پیشفرض)" });
+    res.json({ question: user.securityQuestion || "شهر تولد شما چیست؟" });
   } catch (e) {
     res.status(500).json({ error: 'خطای سرور' });
   }
 });
 
-// مسیر تغییر پسورد پس از بررسی پاسخ سوال امنیتی
 app.post('/api/forgot-password/reset', (req, res) => {
   try {
     const { phone, answer, newPassword } = req.body;
@@ -147,9 +145,42 @@ app.post('/api/forgot-password/reset', (req, res) => {
   }
 });
 
+// لود کردن تسک‌ها بدون ایجاد خطا و هماهنگ با توکن فرانت‌اَند
 app.get('/api/tasks', (req, res) => {
-  const db = readDB();
-  res.json({ tasks: [], balance: 0 });
+  try {
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'وارد نشده‌اید' });
+
+    const db = readDB();
+    const user = findUser(db, Number(token));
+    if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+
+    res.json({ tasks: [], balance: user.balance || 0 });
+  } catch (e) {
+    res.status(500).json({ error: 'خطای سرور' });
+  }
+});
+
+// مسیر فوق‌العاده حساس تولید لینک هوشمند آفر وال زنده برای هر کاربر
+app.get('/api/cpx/offerwall-link', (req, res) => {
+  try {
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (!token) return res.status(401).json({ error: 'وارد نشده‌اید' });
+
+    const db = readDB();
+    const user = findUser(db, Number(token));
+    if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+
+    const userIdStr = String(user.id);
+    const secureHash = md5(`${userIdStr}${CPX_SECURE_HASH}`);
+    const url = `https://cpx-research.com{CPX_APP_ID}&ext_user_id=${userIdStr}&secure_hash=${secureHash}&username=${encodeURIComponent(user.name)}`;
+    
+    res.json({ url });
+  } catch (e) {
+    res.status(500).json({ error: 'خطای سرور' });
+  }
 });
 
 app.get('/api/cpx/postback', (req, res) => {

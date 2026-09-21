@@ -1,10 +1,12 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const DB_FILE = path.join(__dirname, 'data', 'db.json');
 const MIN_WITHDRAW_AFN = 500;
@@ -18,6 +20,7 @@ function md5(str) {
   return crypto.createHash('md5').update(String(str)).digest('hex');
 }
 
+// تابع امنیتی بومی برای هش کردن پسوردها بدون نیاز به پکیج خارجی bcryptjs
 function hashPassword(password) {
   return crypto.createHash('sha256').update(String(password)).digest('hex');
 }
@@ -75,15 +78,19 @@ const MOCK_TASKS = [
   { id: 't6', title: 'تکمیل یک کوییز کوچک', desc: 'یک کوییز ۳ سوالی را کامل کن', reward: 18 }
 ];
 
-function authMiddleware(req, res, next) {
+function authRequired(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'وارد نشده‌اید' });
-  req.userId = Number(token);
-  next();
+  try {
+    req.userId = jwt.verify(token, JWT_SECRET).userId;
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: 'نشست شما منقضی شده، دوباره وارد شوید' });
+  }
 }
 
-function adminMiddleware(req, res, next) {
+function adminRequired(req, res, next) {
   if (req.headers['x-admin-password'] !== ADMIN_PASSWORD) {
     return res.status(401).json({ error: 'رمز ادمین اشتباه است' });
   }
@@ -112,7 +119,8 @@ app.post('/api/register', (req, res) => {
     };
     db.users.push(user);
     writeDB(db);
-    res.json({ token: String(user.id), name: user.name, balance: user.balance });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, name: user.name, balance: user.balance });
   } catch (e) {
     res.status(500).json({ error: 'خطای سرور' });
   }
@@ -124,7 +132,8 @@ app.post('/api/login', (req, res) => {
     const db = readDB();
     const user = db.users.find(u => String(u.phone) === String(phone).trim() && u.passwordHash === hashPassword(password));
     if (!user) return res.status(400).json({ error: 'شماره یا رمز عبور اشتباه است' });
-    res.json({ token: String(user.id), name: user.name, balance: user.balance });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+    res.json({ token, name: user.name, balance: user.balance });
   } catch (e) {
     res.status(500).json({ error: 'خطای سرور' });
   }
@@ -153,10 +162,11 @@ app.post('/api/forgot-password/reset', (req, res) => {
 
   user.passwordHash = hashPassword(newPassword);
   writeDB(db);
-  res.json({ token: String(user.id), name: user.name, balance: user.balance });
+  const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
+  res.json({ token, name: user.name, balance: user.balance });
 });
 
-app.get('/api/tasks', authMiddleware, (req, res) => {
+app.get('/api/tasks', authRequired, (req, res) => {
   const db = readDB();
   const user = findUser(db, req.userId);
   if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
@@ -165,7 +175,7 @@ app.get('/api/tasks', authMiddleware, (req, res) => {
   res.json({ tasks: MOCK_TASKS.map(t => ({ ...t, done: doneToday.includes(t.id) })), balance: user.balance });
 });
 
-app.post('/api/tasks/:id/complete', authMiddleware, (req, res) => {
+app.post('/api/tasks/:id/complete', authRequired, (req, res) => {
   const db = readDB();
   const user = findUser(db, req.userId);
   if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
@@ -183,7 +193,7 @@ app.post('/api/tasks/:id/complete', authMiddleware, (req, res) => {
   res.json({ balance: user.balance, reward: task.reward });
 });
 
-app.get('/api/cpx/offerwall-link', authMiddleware, (req, res) => {
+app.get('/api/cpx/offerwall-link', authRequired, (req, res) => {
   const db = readDB();
   const user = findUser(db, req.userId);
   if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
@@ -216,7 +226,7 @@ app.get('/api/cpx/postback', (req, res) => {
   res.send('1');
 });
 
-app.get('/api/wallet', authMiddleware, (req, res) => {
+app.get('/api/wallet', authRequired, (req, res) => {
   const db = readDB();
   const user = findUser(db, req.userId);
   if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
@@ -225,7 +235,7 @@ app.get('/api/wallet', authMiddleware, (req, res) => {
   res.json({ balance: user.balance, withdrawals: myWithdrawals, minWithdraw: MIN_WITHDRAW_AFN });
 });
 
-app.post('/api/withdraw', authMiddleware, (req, res) => {
+app.post('/api/withdraw', authRequired, (req, res) => {
   const { amount, method, account } = req.body;
   if (!amount || !method || !account) return res.status(400).json({ error: 'اطلاعات ناقص' });
   const db = readDB();
@@ -233,16 +243,3 @@ app.post('/api/withdraw', authMiddleware, (req, res) => {
   if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
   
   const amt = Number(amount);
-  if (amt < MIN_WITHDRAW_AFN) return res.status(400).json({ error: `حداقل برداشت ${MIN_WITHDRAW_AFN} افغانی` });
-  if (amt > user.balance) return res.status(400).json({ error: 'موجودى کافی نیست' });
-
-  user.balance -= amt;
-  if (!db.withdrawals) db.withdrawals = [];
-  db.withdrawals.push({
-    id: db.nextWithdrawId++, userId: user.id, userName: user.name, userPhone: user.phone,
-    amount: amt, method, account, status: 'pending', createdAt: new Date().toISOString()
-  });
-  writeDB(db);
-  res.json({ balance: user.balance });
-});
-

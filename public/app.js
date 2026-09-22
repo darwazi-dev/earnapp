@@ -1,7 +1,6 @@
 const API = '';
 let TOKEN = localStorage.getItem('token') || null;
 let USER_NAME = localStorage.getItem('userName') || '';
-let FORGOT_PHONE = '';
 
 function showView(name) {
   document.getElementById('view-login').classList.add('hidden');
@@ -23,8 +22,7 @@ function showErr(id, msg) {
   el.classList.remove('hidden');
 }
 function hideErr(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.add('hidden');
+  document.getElementById(id).classList.add('hidden');
 }
 
 async function api(path, opts = {}) {
@@ -57,12 +55,9 @@ async function doRegister() {
   const name = document.getElementById('reg-name').value.trim();
   const phone = document.getElementById('reg-phone').value.trim();
   const password = document.getElementById('reg-password').value;
-  const question = document.getElementById('reg-question').value;
-  const answer = document.getElementById('reg-answer').value.trim();
-
-  if (!name || !phone || !password || !answer) return showErr('register-err', 'همه فیلدها از جمله پاسخ امنیتی لازم است');
+  if (!name || !phone || !password) return showErr('register-err', 'همه فیلدها لازم است');
   try {
-    const data = await api('/api/register', { method: 'POST', body: JSON.stringify({ name, phone, password, question, answer }) });
+    const data = await api('/api/register', { method: 'POST', body: JSON.stringify({ name, phone, password }) });
     TOKEN = data.token; USER_NAME = data.name;
     localStorage.setItem('token', TOKEN);
     localStorage.setItem('userName', USER_NAME);
@@ -85,92 +80,50 @@ async function enterApp() {
   await loadTasks();
 }
 
-async function openCpxOfferwall() {
-  try {
-    const data = await api('/api/cpx/offerwall-link');
-    if (data && data.url) {
-      window.open(data.url, '_blank');
-    } else {
-      toast('خطا در دریافت لینک کسب درآمد زنده');
-    }
-  } catch (e) {
-    toast(e.message);
-  }
-}
-
 async function loadTasks() {
   try {
     const data = await api('/api/tasks');
     document.getElementById('balance').textContent = data.balance;
     const list = document.getElementById('tasks-list');
     list.innerHTML = '';
-    
-    const cpxDiv = document.createElement('div');
-    cpxDiv.className = 'task real-cpx-task';
-    cpxDiv.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffeeba 100%)';
-    cpxDiv.style.border = '1px solid #ffeeba';
-    cpxDiv.innerHTML = `
-      <div class="task-icon">💰</div>
-      <div class="task-info">
-        <h3 style="color:#856404">دیوار درآمد واقعی (نظرسنجی زنده)</h3>
-        <p style="color:#856404">تکمیل هر نظرسنجی = واریز آنی پول نقد به حساب افغانی شما</p>
-      </div>
-      <div class="task-reward" style="color:#856404">؋ عالی<small>نامحدود</small></div>
-      <button class="task-btn" style="background:#056839; color:#fff; font-weight:bold" onclick="openCpxOfferwall()">
-        کسب درآمد
-      </button>`;
-    list.appendChild(cpxDiv);
+    data.tasks.forEach(t => {
+      const div = document.createElement('div');
+      div.className = 'task' + (t.done ? ' done' : '');
+      div.innerHTML = `
+        <div class="task-icon">🎯</div>
+        <div class="task-info">
+          <h3>${t.title}</h3>
+          <p>${t.desc}</p>
+        </div>
+        <div class="task-reward">؋${t.reward}<small>پاداش</small></div>
+        <button class="task-btn" ${t.done ? 'disabled' : ''} onclick="completeTask('${t.id}')">
+          ${t.done ? 'انجام شد' : 'شروع'}
+        </button>`;
+      list.appendChild(div);
+    });
   } catch (e) {
-    if (e.message.includes('نشست') || e.message.includes('pattern')) { logout(); }
+    if (e.message.includes('نشست')) { logout(); }
     toast(e.message);
   }
 }
 
-function openForgotModal() {
-  hideErr('forgot-err');
-  document.getElementById('forgot-modal').classList.remove('hidden');
-  document.getElementById('forgot-step1').classList.remove('hidden');
-  document.getElementById('forgot-step2').classList.add('hidden');
-  document.getElementById('forgot-phone').value = '';
-  document.getElementById('forgot-answer').value = '';
-  document.getElementById('forgot-new-password').value = '';
-}
-
-function closeForgotModal() {
-  document.getElementById('forgot-modal').classList.add('hidden');
-}
-
-async function checkForgotPhone() {
-  hideErr('forgot-err');
-  const phone = document.getElementById('forgot-phone').value.trim();
-  if (!phone) return showErr('forgot-err', 'شماره تلفن را وارد کنید');
+async function openRealOffers() {
   try {
-    const data = await api('/api/forgot-password/check-phone', { method: 'POST', body: JSON.stringify({ phone }) });
-    FORGOT_PHONE = phone;
-    document.getElementById('forgot-question-text').textContent = data.question;
-    document.getElementById('forgot-step1').classList.add('hidden');
-    document.getElementById('forgot-step2').classList.remove('hidden');
+    const data = await api('/api/cpx/offerwall-link');
+    window.open(data.url, '_blank');
   } catch (e) {
-    showErr('forgot-err', e.message);
+    toast(e.message);
   }
 }
 
-async function submitResetPassword() {
-  hideErr('forgot-err');
-  const answer = document.getElementById('forgot-answer').value.trim();
-  const newPassword = document.getElementById('forgot-new-password').value;
-  if (!answer || !newPassword) return showErr('forgot-err', 'پاسخ سوال امنیتی و رمز جدید را وارد کنید');
-  if (newPassword.length < 4) return res.status(400).json({ error: 'رمز جدید باید حداقل ۴ کاراکتر باشد' });
+async function completeTask(id) {
   try {
-    const data = await api('/api/forgot-password/reset', { method: 'POST', body: JSON.stringify({ phone: FORGOT_PHONE, answer, newPassword }) });
-    closeForgotModal();
-    toast('رمز عبور با موفقیت تغییر کرد');
-    TOKEN = data.token; USER_NAME = data.name;
-    localStorage.setItem('token', TOKEN);
-    localStorage.setItem('userName', USER_NAME);
-    enterApp();
+    const data = await api(`/api/tasks/${id}/complete`, { method: 'POST' });
+    document.getElementById('balance').textContent = data.balance;
+    toast(`آفرین! ${data.reward} افغانی به حساب شما اضافه شد`);
+    await loadTasks();
   } catch (e) {
-    showErr('forgot-err', e.message);
+    toast(e.message);
   }
 }
 
@@ -186,8 +139,12 @@ function closeWithdraw() {
 async function loadWallet() {
   try {
     const data = await api('/api/wallet');
+    document.getElementById('pending-sub').textContent =
+      data.pending > 0
+        ? `؋${data.pending} در حال بررسی (طی ${data.earningHoldHours} ساعت آزاد می‌شود) — حداقل برداشت: ۵۰۰ افغانی`
+        : 'حداقل برداشت: ۵۰۰ افغانی';
     const hist = document.getElementById('wd-history');
-    if (!data.withdrawals || !data.withdrawals.length) {
+    if (!data.withdrawals.length) {
       hist.innerHTML = '<div class="hint">هنوز درخواست برداشتی ندارید</div>';
       return;
     }

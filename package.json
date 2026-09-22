@@ -4,7 +4,8 @@
   "description": "Kariyab - Production reward platform",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "migrate": "node db/migrate.js"
   },
   "engines": {
     "node": ">=18"

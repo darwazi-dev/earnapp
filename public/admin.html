@@ -4,123 +4,1028 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>پنل ادمین — کاریاب</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet">
+
 <style>
-  :root{--teal-900:#123832;--gold-500:#e0a73f;--cream-50:#f8f4e9;--ink-900:#1b1b18;--ink-600:#5b5850;--ok:#3e7d5a;--danger:#b3413a;}
-  *{box-sizing:border-box;}
-  body{margin:0;font-family:'Vazirmatn',sans-serif;background:var(--cream-50);color:var(--ink-900);}
-  .wrap{max-width:900px;margin:0 auto;padding:28px 18px;}
-  h1{color:var(--teal-900);font-size:22px;}
-  .card{background:#fff;border-radius:16px;padding:20px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.06);}
-  input{padding:12px;border-radius:10px;border:1.5px solid #e5ddc8;font-family:inherit;font-size:15px;width:100%;max-width:280px;}
-  button{padding:11px 18px;border-radius:10px;border:none;font-family:inherit;font-weight:700;cursor:pointer;}
-  .btn-primary{background:var(--teal-900);color:#fff;}
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px;}
-  .stat{background:#fff;border-radius:14px;padding:16px;text-align:center;}
-  .stat .num{font-size:24px;font-weight:800;color:var(--teal-900);}
-  .stat .label{font-size:12.5px;color:var(--ink-600);margin-top:4px;}
-  table{width:100%;border-collapse:collapse;font-size:14px;}
-  th,td{padding:10px 8px;text-align:right;border-bottom:1px solid #efe8d6;}
-  th{color:var(--ink-600);font-weight:600;font-size:12.5px;}
-  .pill{padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:700;}
-  .pending{background:#fdf1dd;color:#93650f;}
-  .approved{background:#e3f2e8;color:var(--ok);}
-  .rejected{background:#fbeceb;color:var(--danger);}
-  .act-btn{padding:7px 12px;font-size:12.5px;margin-inline-start:6px;}
-  .approve{background:var(--ok);color:#fff;}
-  .reject{background:var(--danger);color:#fff;}
-  .hidden{display:none;}
-  .err{color:var(--danger);margin-top:10px;font-size:13.5px;}
+:root{
+  --green:#123832;
+  --green2:#23624f;
+  --cream:#f8f4e9;
+  --text:#1b1b18;
+  --muted:#6b6860;
+  --border:#ebe4d2;
+  --ok:#3e7d5a;
+  --danger:#b3413a;
+  --warning:#d79b2b;
+  --blue:#316a9b;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:'Vazirmatn',sans-serif;
+  background:var(--cream);
+  color:var(--text);
+}
+
+.wrap{
+  max-width:1100px;
+  margin:auto;
+  padding:28px 18px;
+}
+
+h1{
+  color:var(--green);
+  font-size:24px;
+  margin:0 0 22px;
+}
+
+.card{
+  background:#fff;
+  border-radius:16px;
+  padding:20px;
+  margin-bottom:18px;
+  box-shadow:0 1px 4px rgba(0,0,0,.06);
+}
+
+.hidden{display:none!important}
+
+input{
+  width:100%;
+  padding:12px 14px;
+  border-radius:10px;
+  border:1px solid #ddd4bd;
+  font-family:inherit;
+  font-size:14px;
+  outline:none;
+}
+
+input:focus{
+  border-color:var(--green2);
+}
+
+button{
+  border:none;
+  border-radius:9px;
+  padding:9px 13px;
+  font-family:inherit;
+  font-weight:700;
+  cursor:pointer;
+}
+
+button:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.btn-primary{
+  background:var(--green);
+  color:white;
+}
+
+.btn-approve{
+  background:var(--ok);
+  color:white;
+}
+
+.btn-processing{
+  background:var(--blue);
+  color:white;
+}
+
+.btn-paid{
+  background:var(--green);
+  color:white;
+}
+
+.btn-reject{
+  background:var(--danger);
+  color:white;
+}
+
+.btn-logout{
+  background:#eee8d9;
+  color:var(--text);
+}
+
+.stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.stat{
+  background:white;
+  border-radius:15px;
+  padding:18px;
+  text-align:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+
+.stat .num{
+  font-size:24px;
+  font-weight:800;
+  color:var(--green);
+}
+
+.stat .label{
+  margin-top:5px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.table-wrap{
+  overflow-x:auto;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:950px;
+  font-size:13px;
+}
+
+th,td{
+  padding:12px 9px;
+  text-align:right;
+  border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+
+th{
+  color:var(--muted);
+  font-size:12px;
+  white-space:nowrap;
+}
+
+td{
+  word-break:break-word;
+}
+
+.actions{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+
+.pill{
+  display:inline-block;
+  padding:5px 10px;
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.s-requested{
+  background:#fff1d6;
+  color:#8a5a00;
+}
+
+.s-approved{
+  background:#e6f2ea;
+  color:#286744;
+}
+
+.s-processing{
+  background:#e5eff8;
+  color:#24577e;
+}
+
+.s-paid{
+  background:#dff1e5;
+  color:#1f6840;
+}
+
+.s-rejected{
+  background:#f9e4e2;
+  color:#9c302b;
+}
+
+.s-other{
+  background:#eee;
+  color:#555;
+}
+
+.err{
+  color:var(--danger);
+  margin-top:10px;
+  font-size:13px;
+}
+
+.notice{
+  padding:12px 14px;
+  border-radius:10px;
+  margin-bottom:16px;
+  font-size:13px;
+}
+
+.notice-ok{
+  background:#e6f2ea;
+  color:#286744;
+}
+
+.notice-error{
+  background:#f9e4e2;
+  color:#9c302b;
+}
+
+.empty{
+  padding:30px;
+  text-align:center;
+  color:var(--muted);
+}
+
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:18px;
+}
+
+.account-cell{
+  max-width:190px;
+}
+
+.ref{
+  font-size:11px;
+  color:var(--muted);
+  margin-top:4px;
+}
+
+@media(max-width:650px){
+  .wrap{padding:18px 10px}
+  h1{font-size:20px}
+}
 </style>
 </head>
+
 <body>
+
 <div class="wrap">
 
-  <div id="login-box" class="card" style="max-width:340px;margin:60px auto;">
-    <h1 style="margin-top:0">ورود ادمین</h1>
-    <input id="admin-pass" type="password" placeholder="رمز ادمین">
-    <button class="btn-primary" style="margin-top:14px;width:100%" onclick="adminLogin()">ورود</button>
-    <div id="login-err" class="err hidden"></div>
+  <!-- LOGIN -->
+  <div id="loginBox" class="card" style="max-width:360px;margin:70px auto">
+    <h1>ورود ادمین</h1>
+
+    <input
+      id="adminPass"
+      type="password"
+      placeholder="رمز ادمین"
+      autocomplete="current-password"
+    >
+
+    <button
+      class="btn-primary"
+      style="width:100%;margin-top:14px"
+      onclick="adminLogin()"
+    >
+      ورود
+    </button>
+
+    <div id="loginError" class="err hidden"></div>
   </div>
 
+
+  <!-- DASHBOARD -->
   <div id="dashboard" class="hidden">
-    <h1>پنل ادمین — کاریاب</h1>
-    <div class="stats" id="stats"></div>
-    <div class="card">
-      <h3 style="margin-top:0">درخواست‌های برداشت</h3>
-      <table>
-        <thead><tr><th>کاربر</th><th>شماره</th><th>مبلغ</th><th>روش</th><th>حساب</th><th>وضعیت</th><th>عملیات</th></tr></thead>
-        <tbody id="wd-table"></tbody>
-      </table>
+
+    <div class="topbar">
+      <h1 style="margin:0">پنل ادمین — کاریاب</h1>
+
+      <button class="btn-logout" onclick="logoutAdmin()">
+        خروج
+      </button>
     </div>
+
+    <div id="notice" class="hidden"></div>
+
+    <div id="stats" class="stats"></div>
+
+    <div class="card">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
+        <h3 style="margin:0">درخواست‌های برداشت</h3>
+
+        <button class="btn-primary" onclick="loadDashboard()">
+          بروزرسانی
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+
+          <thead>
+            <tr>
+              <th>کاربر</th>
+              <th>شماره</th>
+              <th>مبلغ</th>
+              <th>روش</th>
+              <th>حساب</th>
+              <th>وضعیت</th>
+              <th>Payment Reference</th>
+              <th>عملیات</th>
+            </tr>
+          </thead>
+
+          <tbody id="withdrawalTable"></tbody>
+
+        </table>
+      </div>
+
+    </div>
+
   </div>
 
 </div>
-<script>
-let ADMIN_PASS = sessionStorage.getItem('adminPass') || '';
 
-async function adminApi(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json', 'X-Admin-Password': ADMIN_PASS, ...(opts.headers || {}) };
-  const res = await fetch(path, { ...opts, headers });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'خطا');
+
+<script>
+
+let ADMIN_PASS =
+  sessionStorage.getItem('kariyabAdminPass') || '';
+
+
+function escapeHtml(value){
+  return String(value ?? '')
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'","&#039;");
+}
+
+
+function showNotice(message,type='ok'){
+
+  const el =
+    document.getElementById('notice');
+
+  el.textContent = message;
+
+  el.className =
+    'notice ' +
+    (type === 'error'
+      ? 'notice-error'
+      : 'notice-ok');
+
+  el.classList.remove('hidden');
+}
+
+
+async function adminApi(path,options={}){
+
+  const headers = {
+    'Content-Type':'application/json',
+    'X-Admin-Password':ADMIN_PASS,
+    ...(options.headers || {})
+  };
+
+  const response =
+    await fetch(path,{
+      ...options,
+      headers
+    });
+
+  const data =
+    await response
+      .json()
+      .catch(()=>({}));
+
+  if(response.status === 401){
+
+    sessionStorage.removeItem(
+      'kariyabAdminPass'
+    );
+
+    ADMIN_PASS = '';
+
+    throw new Error(
+      'دسترسی ادمین معتبر نیست'
+    );
+  }
+
+  if(!response.ok){
+
+    throw new Error(
+      data.error || 'خطای سرور'
+    );
+  }
+
   return data;
 }
 
-async function adminLogin() {
-  const pass = document.getElementById('admin-pass').value;
-  try {
-    await fetch('/api/admin/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pass })
-    }).then(async r => { if (!r.ok) throw new Error((await r.json()).error); });
-    ADMIN_PASS = pass;
-    sessionStorage.setItem('adminPass', pass);
-    document.getElementById('login-box').classList.add('hidden');
-    document.getElementById('dashboard').classList.remove('hidden');
-    loadDashboard();
-  } catch (e) {
-    document.getElementById('login-err').textContent = e.message;
-    document.getElementById('login-err').classList.remove('hidden');
+
+async function adminLogin(){
+
+  const input =
+    document.getElementById('adminPass');
+
+  const error =
+    document.getElementById('loginError');
+
+  const password =
+    input.value.trim();
+
+  error.classList.add('hidden');
+
+  if(!password){
+
+    error.textContent =
+      'رمز ادمین را وارد کنید';
+
+    error.classList.remove('hidden');
+
+    return;
+  }
+
+  try{
+
+    const response =
+      await fetch('/api/admin/login',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json'
+        },
+        body:JSON.stringify({
+          password
+        })
+      });
+
+    const data =
+      await response
+        .json()
+        .catch(()=>({}));
+
+    if(!response.ok){
+
+      throw new Error(
+        data.error ||
+        'رمز ادمین اشتباه است'
+      );
+    }
+
+    ADMIN_PASS = password;
+
+    sessionStorage.setItem(
+      'kariyabAdminPass',
+      password
+    );
+
+    document
+      .getElementById('loginBox')
+      .classList.add('hidden');
+
+    document
+      .getElementById('dashboard')
+      .classList.remove('hidden');
+
+    await loadDashboard();
+
+  }catch(e){
+
+    error.textContent = e.message;
+
+    error.classList.remove('hidden');
   }
 }
 
-async function loadDashboard() {
-  const stats = await adminApi('/api/admin/stats');
-  document.getElementById('stats').innerHTML = `
-    <div class="stat"><div class="num">${stats.totalUsers}</div><div class="label">کل کاربران</div></div>
-    <div class="stat"><div class="num">؋${stats.totalBalanceHeld}</div><div class="label">موجودی نزد کاربران</div></div>
-    <div class="stat"><div class="num">${stats.pendingCount}</div><div class="label">درخواست در انتظار</div></div>
-    <div class="stat"><div class="num">؋${stats.pendingAmount}</div><div class="label">مبلغ در انتظار</div></div>
-    <div class="stat"><div class="num">؋${stats.paidOut}</div><div class="label">پرداخت‌شده تاکنون</div></div>
-  `;
 
-  const data = await adminApi('/api/admin/withdrawals');
-  const labels = { pending: 'در انتظار', approved: 'پرداخت شد', rejected: 'رد شد' };
-  document.getElementById('wd-table').innerHTML = data.withdrawals.map(w => `
-    <tr>
-      <td>${w.userName}</td>
-      <td>${w.userPhone}</td>
-      <td>؋${w.amount}</td>
-      <td>${w.method}</td>
-      <td>${w.account}</td>
-      <td><span class="pill ${w.status}">${labels[w.status]}</span></td>
-      <td>${w.status === 'pending' ? `
-        <button class="act-btn approve" onclick="resolveWd(${w.id},'approve')">تایید</button>
-        <button class="act-btn reject" onclick="resolveWd(${w.id},'reject')">رد</button>` : '—'}</td>
-    </tr>`).join('');
+function logoutAdmin(){
+
+  ADMIN_PASS = '';
+
+  sessionStorage.removeItem(
+    'kariyabAdminPass'
+  );
+
+  location.reload();
 }
 
-async function resolveWd(id, action) {
-  await adminApi(`/api/admin/withdrawals/${id}/${action}`, { method: 'POST' });
+
+function statusLabel(status){
+
+  const map = {
+    REQUESTED:'درخواست شده',
+    UNDER_REVIEW:'در حال بررسی',
+    APPROVED:'تأیید شده',
+    PROCESSING:'در حال پردازش',
+    PAID:'پرداخت شده',
+    REJECTED:'رد شده',
+    CANCELLED:'لغو شده',
+    FAILED:'ناموفق'
+  };
+
+  return map[status] || status;
+}
+
+
+function statusClass(status){
+
+  if(
+    status === 'REQUESTED' ||
+    status === 'UNDER_REVIEW'
+  ){
+    return 's-requested';
+  }
+
+  if(status === 'APPROVED'){
+    return 's-approved';
+  }
+
+  if(status === 'PROCESSING'){
+    return 's-processing';
+  }
+
+  if(status === 'PAID'){
+    return 's-paid';
+  }
+
+  if(status === 'REJECTED'){
+    return 's-rejected';
+  }
+
+  return 's-other';
+}
+
+
+function renderActions(w){
+
+  const id =
+    Number(w.id);
+
+  const status =
+    String(w.rawStatus || '');
+
+  if(
+    status === 'REQUESTED' ||
+    status === 'UNDER_REVIEW'
+  ){
+    return `
+      <div class="actions">
+
+        <button
+          class="btn-approve"
+          onclick="approveWithdrawal(${id})"
+        >
+          تأیید
+        </button>
+
+        <button
+          class="btn-reject"
+          onclick="rejectWithdrawal(${id})"
+        >
+          رد
+        </button>
+
+      </div>
+    `;
+  }
+
+
+  if(status === 'APPROVED'){
+
+    return `
+      <div class="actions">
+
+        <button
+          class="btn-processing"
+          onclick="markProcessing(${id})"
+        >
+          شروع پردازش
+        </button>
+
+        <button
+          class="btn-paid"
+          onclick="markPaid(${id})"
+        >
+          ثبت پرداخت
+        </button>
+
+        <button
+          class="btn-reject"
+          onclick="rejectWithdrawal(${id})"
+        >
+          رد
+        </button>
+
+      </div>
+    `;
+  }
+
+
+  if(status === 'PROCESSING'){
+
+    return `
+      <div class="actions">
+
+        <button
+          class="btn-paid"
+          onclick="markPaid(${id})"
+        >
+          ثبت پرداخت
+        </button>
+
+      </div>
+    `;
+  }
+
+
+  return '—';
+}
+
+
+async function loadDashboard(){
+
+  try{
+
+    const [
+      stats,
+      data
+    ] = await Promise.all([
+      adminApi('/api/admin/stats'),
+      adminApi('/api/admin/withdrawals')
+    ]);
+
+
+    document.getElementById(
+      'stats'
+    ).innerHTML = `
+
+      <div class="stat">
+        <div class="num">
+          ${escapeHtml(stats.totalUsers)}
+        </div>
+        <div class="label">
+          کل کاربران
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="num">
+          ${escapeHtml(stats.totalBalanceHeld)} ؋
+        </div>
+        <div class="label">
+          موجودی نزد کاربران
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="num">
+          ${escapeHtml(stats.pendingCount)}
+        </div>
+        <div class="label">
+          درخواست در انتظار
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="num">
+          ${escapeHtml(stats.pendingAmount)} ؋
+        </div>
+        <div class="label">
+          مبلغ در انتظار
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="num">
+          ${escapeHtml(stats.paidOut)} ؋
+        </div>
+        <div class="label">
+          پرداخت‌شده
+        </div>
+      </div>
+    `;
+
+
+    const tbody =
+      document.getElementById(
+        'withdrawalTable'
+      );
+
+
+    if(
+      !data.withdrawals ||
+      !data.withdrawals.length
+    ){
+
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8" class="empty">
+            هیچ درخواست برداشتی وجود ندارد
+          </td>
+        </tr>
+      `;
+
+      return;
+    }
+
+
+    tbody.innerHTML =
+      data.withdrawals
+        .map(w=>{
+
+          const status =
+            String(w.rawStatus || '');
+
+          return `
+            <tr>
+
+              <td>
+                ${escapeHtml(w.userName)}
+              </td>
+
+              <td>
+                ${escapeHtml(w.userPhone)}
+              </td>
+
+              <td>
+                <strong>
+                  ${escapeHtml(w.amount)} ؋
+                </strong>
+              </td>
+
+              <td>
+                ${escapeHtml(w.method || '—')}
+              </td>
+
+              <td class="account-cell">
+                ${escapeHtml(w.account || '—')}
+              </td>
+
+              <td>
+                <span class="pill ${statusClass(status)}">
+                  ${escapeHtml(statusLabel(status))}
+                </span>
+              </td>
+
+              <td>
+                ${
+                  w.paymentReference
+                  ? `<span class="ref">${escapeHtml(w.paymentReference)}</span>`
+                  : '—'
+                }
+              </td>
+
+              <td>
+                ${renderActions(w)}
+              </td>
+
+            </tr>
+          `;
+
+        })
+        .join('');
+
+
+  }catch(e){
+
+    showNotice(
+      e.message,
+      'error'
+    );
+
+    if(!ADMIN_PASS){
+
+      document
+        .getElementById('dashboard')
+        .classList.add('hidden');
+
+      document
+        .getElementById('loginBox')
+        .classList.remove('hidden');
+    }
+  }
+}
+
+
+async function approveWithdrawal(id){
+
+  if(
+    !confirm(
+      'این درخواست برداشت تأیید شود؟'
+    )
+  ){
+    return;
+  }
+
+  try{
+
+    await adminApi(
+      `/api/admin/withdrawals/${id}/approve`,
+      {
+        method:'POST',
+        body:JSON.stringify({})
+      }
+    );
+
+    showNotice(
+      'درخواست برداشت تأیید شد.'
+    );
+
+    await loadDashboard();
+
+  }catch(e){
+
+    showNotice(
+      e.message,
+      'error'
+    );
+  }
+}
+
+
+async function markProcessing(id){
+
+  if(
+    !confirm(
+      'پردازش این پرداخت شروع شود؟'
+    )
+  ){
+    return;
+  }
+
+  try{
+
+    await adminApi(
+      `/api/admin/withdrawals/${id}/processing`,
+      {
+        method:'POST',
+        body:JSON.stringify({})
+      }
+    );
+
+    showNotice(
+      'وضعیت به «در حال پردازش» تغییر کرد.'
+    );
+
+    await loadDashboard();
+
+  }catch(e){
+
+    showNotice(
+      e.message,
+      'error'
+    );
+  }
+}
+
+
+async function markPaid(id){
+
+  const paymentReference =
+    prompt(
+      'Payment Reference / شماره مرجع پرداخت را وارد کنید:'
+    );
+
+  if(paymentReference === null){
+    return;
+  }
+
+  const ref =
+    paymentReference.trim();
+
+  if(!ref){
+
+    showNotice(
+      'شماره مرجع پرداخت الزامی است.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  if(
+    !confirm(
+      'آیا مطمئن هستید که پول واقعاً پرداخت شده است؟'
+    )
+  ){
+    return;
+  }
+
+
+  try{
+
+    await adminApi(
+      `/api/admin/withdrawals/${id}/paid`,
+      {
+        method:'POST',
+        body:JSON.stringify({
+          paymentReference:ref
+        })
+      }
+    );
+
+    showNotice(
+      'پرداخت با موفقیت ثبت شد.'
+    );
+
+    await loadDashboard();
+
+  }catch(e){
+
+    showNotice(
+      e.message,
+      'error'
+    );
+  }
+}
+
+
+async function rejectWithdrawal(id){
+
+  const reason =
+    prompt(
+      'دلیل رد درخواست را وارد کنید:'
+    );
+
+  if(reason === null){
+    return;
+  }
+
+  const cleanReason =
+    reason.trim();
+
+  if(!cleanReason){
+
+    showNotice(
+      'دلیل رد درخواست را وارد کنید.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  if(
+    !confirm(
+      'درخواست رد شود و مبلغ به موجودی کاربر برگردد؟'
+    )
+  ){
+    return;
+  }
+
+
+  try{
+
+    await adminApi(
+      `/api/admin/withdrawals/${id}/reject`,
+      {
+        method:'POST',
+        body:JSON.stringify({
+          reason:cleanReason
+        })
+      }
+    );
+
+    showNotice(
+      'درخواست رد شد و مبلغ به کیف پول کاربر برگشت.'
+    );
+
+    await loadDashboard();
+
+  }catch(e){
+
+    showNotice(
+      e.message,
+      'error'
+    );
+  }
+}
+
+
+document
+  .getElementById('adminPass')
+  .addEventListener(
+    'keydown',
+    e=>{
+      if(e.key === 'Enter'){
+        adminLogin();
+      }
+    }
+  );
+
+
+if(ADMIN_PASS){
+
+  document
+    .getElementById('loginBox')
+    .classList.add('hidden');
+
+  document
+    .getElementById('dashboard')
+    .classList.remove('hidden');
+
   loadDashboard();
 }
 
-if (ADMIN_PASS) {
-  document.getElementById('login-box').classList.add('hidden');
-  document.getElementById('dashboard').classList.remove('hidden');
-  loadDashboard();
-}
 </script>
+
 </body>
 </html>

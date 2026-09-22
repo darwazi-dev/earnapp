@@ -177,12 +177,28 @@ async function migrate() {
               'FAILED'
             )
           ),
+        account_details TEXT,
         payment_reference TEXT,
         rejection_reason TEXT,
         requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         reviewed_at TIMESTAMPTZ,
         paid_at TIMESTAMPTZ,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      ALTER TABLE withdrawals
+        ADD COLUMN IF NOT EXISTS account_details TEXT;
+
+      CREATE TABLE IF NOT EXISTS task_completions (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL
+          REFERENCES users(id) ON DELETE RESTRICT,
+        task_code VARCHAR(100) NOT NULL,
+        reward_minor BIGINT NOT NULL DEFAULT 0,
+        completed_on DATE NOT NULL DEFAULT CURRENT_DATE,
+        completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        UNIQUE(user_id, task_code, completed_on)
       );
 
       CREATE TABLE IF NOT EXISTS support_tickets (
@@ -277,18 +293,31 @@ async function migrate() {
 
       CREATE INDEX IF NOT EXISTS idx_support_tickets_user
         ON support_tickets(user_id);
+
+      CREATE INDEX IF NOT EXISTS idx_task_completions_user
+        ON task_completions(user_id);
+
+      CREATE INDEX IF NOT EXISTS idx_task_completions_date
+        ON task_completions(completed_on);
     `);
 
-    await client.query(
-      `
+    await client.query(`
       INSERT INTO providers (code, name, enabled)
       VALUES ('CPX', 'CPX Research', FALSE)
       ON CONFLICT (code) DO NOTHING
-      `
-    );
+    `);
 
-    await client.query(
-      `
+    await client.query(`
+      INSERT INTO withdrawal_methods (code, name, enabled)
+      VALUES
+        ('HesabPay', 'HesabPay', TRUE),
+        ('M-Paisa', 'M-Paisa (Roshan)', TRUE),
+        ('Hawala', 'حواله صرافی', TRUE)
+      ON CONFLICT (code) DO UPDATE
+      SET name = EXCLUDED.name
+    `);
+
+    await client.query(`
       INSERT INTO system_settings (key, value, description)
       VALUES
         (
@@ -305,10 +334,19 @@ async function migrate() {
           'user_revenue_share',
           '0.55'::jsonb,
           'Current configurable user revenue share assumption'
+        ),
+        (
+          'afn_per_usd',
+          '68'::jsonb,
+          'Configurable AFN per USD conversion rate'
+        ),
+        (
+          'earning_hold_hours',
+          '72'::jsonb,
+          'Pending earning hold period in hours'
         )
       ON CONFLICT (key) DO NOTHING
-      `
-    );
+    `);
 
     await client.query("COMMIT");
 

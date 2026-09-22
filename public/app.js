@@ -1,180 +1,562 @@
 const API = '';
+
 let TOKEN = localStorage.getItem('token') || null;
 let USER_NAME = localStorage.getItem('userName') || '';
 
+function el(id) {
+  return document.getElementById(id);
+}
+
 function showView(name) {
-  document.getElementById('view-login').classList.add('hidden');
-  document.getElementById('view-register').classList.add('hidden');
-  document.getElementById('view-main').classList.add('hidden');
-  document.getElementById(`view-${name}`).classList.remove('hidden');
+  ['login', 'register', 'main'].forEach(view => {
+    const node = el(`view-${view}`);
+    if (node) node.classList.add('hidden');
+  });
+
+  const target = el(`view-${name}`);
+  if (target) target.classList.remove('hidden');
 }
 
 function toast(msg) {
-  const t = document.getElementById('toast');
+  const t = el('toast');
+
+  if (!t) {
+    alert(msg);
+    return;
+  }
+
   t.textContent = msg;
   t.classList.remove('hidden');
-  setTimeout(() => t.classList.add('hidden'), 2500);
+
+  setTimeout(() => {
+    t.classList.add('hidden');
+  }, 3000);
 }
 
 function showErr(id, msg) {
-  const el = document.getElementById(id);
-  el.textContent = msg;
-  el.classList.remove('hidden');
+  const node = el(id);
+  if (!node) return;
+
+  node.textContent = msg;
+  node.classList.remove('hidden');
 }
+
 function hideErr(id) {
-  document.getElementById(id).classList.add('hidden');
+  const node = el(id);
+  if (node) node.classList.add('hidden');
+}
+
+function formatMoney(value) {
+  const n = Number(value || 0);
+
+  return new Intl.NumberFormat('fa-AF', {
+    maximumFractionDigits: 2
+  }).format(n);
 }
 
 async function api(path, opts = {}) {
-  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
-  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
-  const res = await fetch(API + path, { ...opts, headers });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'خطایی رخ داد');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(opts.headers || {})
+  };
+
+  if (TOKEN) {
+    headers.Authorization = `Bearer ${TOKEN}`;
+  }
+
+  let res;
+
+  try {
+    res = await fetch(API + path, {
+      ...opts,
+      headers
+    });
+  } catch (error) {
+    throw new Error('ارتباط با سرور برقرار نشد');
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+
+  let data = {};
+
+  if (contentType.includes('application/json')) {
+    data = await res.json().catch(() => ({}));
+  } else {
+    const text = await res.text().catch(() => '');
+    data = { error: text };
+  }
+
+  if (res.status === 401 && TOKEN && !path.startsWith('/api/admin/')) {
+    logout(false);
+    throw new Error('نشست شما منقضی شده، دوباره وارد شوید');
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      data.error ||
+      `خطای سرور (${res.status})`
+    );
+  }
+
   return data;
 }
 
+// ---------- Login ----------
 async function doLogin() {
   hideErr('login-err');
-  const phone = document.getElementById('login-phone').value.trim();
-  const password = document.getElementById('login-password').value;
-  if (!phone || !password) return showErr('login-err', 'شماره و رمز عبور را وارد کنید');
+
+  const phone = el('login-phone')?.value.trim() || '';
+  const password = el('login-password')?.value || '';
+
+  if (!phone || !password) {
+    return showErr(
+      'login-err',
+      'شماره و رمز عبور را وارد کنید'
+    );
+  }
+
   try {
-    const data = await api('/api/login', { method: 'POST', body: JSON.stringify({ phone, password }) });
-    TOKEN = data.token; USER_NAME = data.name;
+    const data = await api('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        phone,
+        password
+      })
+    });
+
+    TOKEN = data.token;
+    USER_NAME = data.name || '';
+
     localStorage.setItem('token', TOKEN);
     localStorage.setItem('userName', USER_NAME);
-    enterApp();
-  } catch (e) {
-    showErr('login-err', e.message);
+
+    await enterApp();
+  } catch (error) {
+    showErr('login-err', error.message);
   }
 }
 
+// ---------- Register ----------
 async function doRegister() {
   hideErr('register-err');
-  const name = document.getElementById('reg-name').value.trim();
-  const phone = document.getElementById('reg-phone').value.trim();
-  const password = document.getElementById('reg-password').value;
-  if (!name || !phone || !password) return showErr('register-err', 'همه فیلدها لازم است');
+
+  const name = el('reg-name')?.value.trim() || '';
+  const phone = el('reg-phone')?.value.trim() || '';
+  const password = el('reg-password')?.value || '';
+
+  if (!name || !phone || !password) {
+    return showErr(
+      'register-err',
+      'همه فیلدها لازم است'
+    );
+  }
+
+  if (password.length < 8) {
+    return showErr(
+      'register-err',
+      'رمز عبور باید حداقل ۸ کاراکتر باشد'
+    );
+  }
+
   try {
-    const data = await api('/api/register', { method: 'POST', body: JSON.stringify({ name, phone, password }) });
-    TOKEN = data.token; USER_NAME = data.name;
+    const data = await api('/api/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        name,
+        phone,
+        password
+      })
+    });
+
+    TOKEN = data.token;
+    USER_NAME = data.name || name;
+
     localStorage.setItem('token', TOKEN);
     localStorage.setItem('userName', USER_NAME);
-    enterApp();
-  } catch (e) {
-    showErr('register-err', e.message);
+
+    await enterApp();
+  } catch (error) {
+    showErr('register-err', error.message);
   }
 }
 
-function logout() {
+// ---------- Logout ----------
+function logout(showMessage = true) {
   localStorage.removeItem('token');
   localStorage.removeItem('userName');
+
   TOKEN = null;
+  USER_NAME = '';
+
   showView('login');
+
+  if (showMessage) {
+    toast('از حساب خارج شدید');
+  }
 }
 
+// ---------- Main ----------
 async function enterApp() {
-  document.getElementById('user-name').textContent = USER_NAME;
+  const userName = el('user-name');
+
+  if (userName) {
+    userName.textContent = USER_NAME;
+  }
+
   showView('main');
-  await loadTasks();
+
+  await Promise.allSettled([
+    loadTasks(),
+    loadWalletSummary()
+  ]);
 }
 
+// ---------- Opportunities ----------
 async function loadTasks() {
   try {
     const data = await api('/api/tasks');
-    document.getElementById('balance').textContent = data.balance;
-    const list = document.getElementById('tasks-list');
+
+    const balance = el('balance');
+
+    if (balance) {
+      balance.textContent = formatMoney(data.balance);
+    }
+
+    const list = el('tasks-list');
+
+    if (!list) return;
+
     list.innerHTML = '';
-    data.tasks.forEach(t => {
-      const div = document.createElement('div');
-      div.className = 'task' + (t.done ? ' done' : '');
-      div.innerHTML = `
-        <div class="task-icon">🎯</div>
+
+    if (data.realOffersAvailable) {
+      const card = document.createElement('div');
+
+      card.className = 'task';
+
+      card.innerHTML = `
+        <div class="task-icon">📋</div>
+
         <div class="task-info">
-          <h3>${t.title}</h3>
-          <p>${t.desc}</p>
+          <h3>فرصت‌های درآمد</h3>
+          <p>
+            سروی‌ها و فرصت‌های موجود را مشاهده کنید.
+            پاداش فقط پس از تایید ارائه‌دهنده ثبت می‌شود.
+          </p>
         </div>
-        <div class="task-reward">؋${t.reward}<small>پاداش</small></div>
-        <button class="task-btn" ${t.done ? 'disabled' : ''} onclick="completeTask('${t.id}')">
-          ${t.done ? 'انجام شد' : 'شروع'}
-        </button>`;
-      list.appendChild(div);
-    });
-  } catch (e) {
-    if (e.message.includes('نشست')) { logout(); }
-    toast(e.message);
+
+        <button
+          class="task-btn"
+          type="button"
+          onclick="openRealOffers()"
+        >
+          مشاهده
+        </button>
+      `;
+
+      list.appendChild(card);
+    }
+
+    if (Array.isArray(data.tasks) && data.tasks.length) {
+      data.tasks.forEach(task => {
+        const div = document.createElement('div');
+
+        div.className =
+          'task' + (task.done ? ' done' : '');
+
+        div.innerHTML = `
+          <div class="task-icon">🎯</div>
+
+          <div class="task-info">
+            <h3>${escapeHtml(task.title)}</h3>
+            <p>${escapeHtml(task.desc || '')}</p>
+          </div>
+
+          <div class="task-reward">
+            ؋${formatMoney(task.reward)}
+            <small>پاداش</small>
+          </div>
+
+          <button
+            class="task-btn"
+            ${task.done ? 'disabled' : ''}
+            onclick="completeTask('${escapeAttribute(task.id)}')"
+          >
+            ${task.done ? 'انجام شد' : 'شروع'}
+          </button>
+        `;
+
+        list.appendChild(div);
+      });
+    }
+
+    if (
+      !data.realOffersAvailable &&
+      (!Array.isArray(data.tasks) || !data.tasks.length)
+    ) {
+      list.innerHTML = `
+        <div class="hint">
+          در حال حاضر فرصت درآمد فعالی موجود نیست.
+        </div>
+      `;
+    }
+  } catch (error) {
+    toast(error.message);
   }
 }
 
 async function openRealOffers() {
   try {
     const data = await api('/api/cpx/offerwall-link');
-    window.open(data.url, '_blank');
-  } catch (e) {
-    toast(e.message);
+
+    if (!data.url) {
+      throw new Error('لینک فرصت‌ها دریافت نشد');
+    }
+
+    const win = window.open(
+      data.url,
+      '_blank',
+      'noopener,noreferrer'
+    );
+
+    if (!win) {
+      toast('اجازه باز شدن صفحه جدید را در مرورگر فعال کنید');
+    }
+  } catch (error) {
+    toast(error.message);
   }
 }
 
+// Kept only for compatibility.
+// Production backend does not credit fake tasks.
 async function completeTask(id) {
   try {
-    const data = await api(`/api/tasks/${id}/complete`, { method: 'POST' });
-    document.getElementById('balance').textContent = data.balance;
-    toast(`آفرین! ${data.reward} افغانی به حساب شما اضافه شد`);
-    await loadTasks();
-  } catch (e) {
-    toast(e.message);
+    await api(
+      `/api/tasks/${encodeURIComponent(id)}/complete`,
+      { method: 'POST' }
+    );
+
+    await Promise.allSettled([
+      loadTasks(),
+      loadWalletSummary()
+    ]);
+  } catch (error) {
+    toast(error.message);
   }
 }
 
+// ---------- Wallet summary ----------
+async function loadWalletSummary() {
+  try {
+    const data = await api('/api/wallet');
+
+    const balance = el('balance');
+
+    if (balance) {
+      balance.textContent =
+        formatMoney(data.available);
+    }
+
+    renderPendingInfo(data);
+  } catch (error) {
+    console.error('Wallet summary:', error);
+  }
+}
+
+function renderPendingInfo(data) {
+  const pendingSub = el('pending-sub');
+
+  if (!pendingSub) return;
+
+  const minWithdraw =
+    formatMoney(data.minWithdraw || 500);
+
+  if (Number(data.pending || 0) > 0) {
+    pendingSub.textContent =
+      `؋${formatMoney(data.pending)} در حال بررسی — ` +
+      `حداقل برداشت: ${minWithdraw} افغانی`;
+  } else {
+    pendingSub.textContent =
+      `حداقل برداشت: ${minWithdraw} افغانی`;
+  }
+}
+
+// ---------- Withdrawal modal ----------
 function openWithdraw() {
-  document.getElementById('withdraw-modal').classList.remove('hidden');
+  const modal = el('withdraw-modal');
+
+  if (modal) {
+    modal.classList.remove('hidden');
+  }
+
   loadWallet();
 }
+
 function closeWithdraw() {
-  document.getElementById('withdraw-modal').classList.add('hidden');
+  const modal = el('withdraw-modal');
+
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+
   hideErr('wd-err');
 }
 
 async function loadWallet() {
   try {
     const data = await api('/api/wallet');
-    document.getElementById('pending-sub').textContent =
-      data.pending > 0
-        ? `؋${data.pending} در حال بررسی (طی ${data.earningHoldHours} ساعت آزاد می‌شود) — حداقل برداشت: ۵۰۰ افغانی`
-        : 'حداقل برداشت: ۵۰۰ افغانی';
-    const hist = document.getElementById('wd-history');
-    if (!data.withdrawals.length) {
-      hist.innerHTML = '<div class="hint">هنوز درخواست برداشتی ندارید</div>';
+
+    const balance = el('balance');
+
+    if (balance) {
+      balance.textContent =
+        formatMoney(data.available);
+    }
+
+    renderPendingInfo(data);
+
+    const hist = el('wd-history');
+
+    if (!hist) return;
+
+    if (
+      !Array.isArray(data.withdrawals) ||
+      !data.withdrawals.length
+    ) {
+      hist.innerHTML = `
+        <div class="hint">
+          هنوز درخواست برداشتی ندارید
+        </div>
+      `;
+
       return;
     }
-    const statusLabel = { pending: 'در حال بررسی', approved: 'پرداخت شد', rejected: 'رد شد' };
-    hist.innerHTML = '<div class="section-title" style="margin-top:0">تاریخچه درخواست‌ها</div>' +
-      data.withdrawals.map(w => `
+
+    const statusLabel = {
+      pending: 'در حال بررسی',
+      approved: 'تایید شده',
+      rejected: 'رد شده'
+    };
+
+    hist.innerHTML = `
+      <div
+        class="section-title"
+        style="margin-top:0"
+      >
+        تاریخچه درخواست‌ها
+      </div>
+
+      ${data.withdrawals.map(w => `
         <div class="wd-item">
-          <span>؋${w.amount} — ${w.method}</span>
-          <span class="status-pill status-${w.status}">${statusLabel[w.status]}</span>
-        </div>`).join('');
-  } catch (e) { toast(e.message); }
+          <span>
+            ؋${formatMoney(w.amount)}
+            —
+            ${escapeHtml(w.method || 'نامشخص')}
+          </span>
+
+          <span
+            class="status-pill status-${escapeAttribute(w.status)}"
+          >
+            ${statusLabel[w.status] || escapeHtml(w.rawStatus || w.status)}
+          </span>
+        </div>
+      `).join('')}
+    `;
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
 async function submitWithdraw() {
   hideErr('wd-err');
-  const amount = document.getElementById('wd-amount').value;
-  const method = document.getElementById('wd-method').value;
-  const account = document.getElementById('wd-account').value.trim();
-  if (!amount || !account) return showErr('wd-err', 'مبلغ و شماره حساب را وارد کنید');
+
+  const amount = el('wd-amount')?.value || '';
+  const method = el('wd-method')?.value || '';
+  const account = el('wd-account')?.value.trim() || '';
+
+  if (!amount || !method || !account) {
+    return showErr(
+      'wd-err',
+      'مبلغ، روش پرداخت و شماره حساب را وارد کنید'
+    );
+  }
+
   try {
-    const data = await api('/api/withdraw', { method: 'POST', body: JSON.stringify({ amount, method, account }) });
-    document.getElementById('balance').textContent = data.balance;
-    toast('درخواست برداشت ثبت شد');
-    document.getElementById('wd-amount').value = '';
-    document.getElementById('wd-account').value = '';
+    const data = await api('/api/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({
+        amount,
+        method,
+        account
+      })
+    });
+
+    const balance = el('balance');
+
+    if (balance) {
+      balance.textContent =
+        formatMoney(data.balance);
+    }
+
+    toast('درخواست برداشت با موفقیت ثبت شد');
+
+    if (el('wd-amount')) {
+      el('wd-amount').value = '';
+    }
+
+    if (el('wd-account')) {
+      el('wd-account').value = '';
+    }
+
     await loadWallet();
-  } catch (e) {
-    showErr('wd-err', e.message);
+  } catch (error) {
+    showErr('wd-err', error.message);
   }
 }
 
-// init
-if (TOKEN) { enterApp(); } else { showView('login'); }
+// ---------- Safe HTML helpers ----------
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value)
+    .replaceAll('`', '&#096;');
+}
+
+// ---------- Forgot password ----------
+// UI compatibility only.
+// Password reset is intentionally not faked.
+// A verified OTP/recovery backend must be added before launch.
+function openForgotModal() {
+  toast('بازیابی امن رمز عبور در مرحله بعد فعال می‌شود');
+}
+
+function closeForgotModal() {
+  const modal = el('forgot-modal');
+
+  if (modal) {
+    modal.classList.add('hidden');
+  }
+}
+
+function checkForgotPhone() {
+  toast('بازیابی امن رمز عبور هنوز فعال نشده است');
+}
+
+function submitResetPassword() {
+  toast('بازیابی امن رمز عبور هنوز فعال نشده است');
+}
+
+// ---------- Init ----------
+document.addEventListener('DOMContentLoaded', () => {
+  if (TOKEN) {
+    enterApp();
+  } else {
+    showView('login');
+  }
+});

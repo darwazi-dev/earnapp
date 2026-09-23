@@ -417,12 +417,23 @@ async function migrate() {
       )
       VALUES
         ('HesabPay', 'HesabPay', FALSE),
-        ('M-Paisa', 'M-Paisa (Roshan)', FALSE),
-        ('Hawala', 'حواله صرافی', FALSE)
+        ('M-Paisa', 'M-Paisa (Roshan)', FALSE)
       ON CONFLICT (code)
       DO UPDATE SET
         name = EXCLUDED.name,
         updated_at = NOW()
+    `);
+
+    /*
+     * Hawala is intentionally removed from the active product.
+     * Disable legacy rows instead of deleting them so historical
+     * withdrawals keep their audit trail and foreign-key references.
+     */
+    await client.query(`
+      UPDATE withdrawal_methods
+      SET enabled = FALSE,
+          updated_at = NOW()
+      WHERE code = 'Hawala'
     `);
 
     await client.query(`

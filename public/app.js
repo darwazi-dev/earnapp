@@ -281,6 +281,43 @@ function applyLanguage(language) {
   };
   setText('#account-title',t.accountTitle);
   setText('#language-note',t.languageNote);
+
+  const modalText = {
+    'fa-AF': {
+      notifications:'اعلان‌ها', readAll:'خواندن همه',
+      supportTitle:'پشتیبانی کاریاب', supportTopic:'موضوع درخواست', supportSubject:'عنوان (اختیاری)', supportMessage:'توضیحات', submitSupport:'ثبت درخواست', close:'بستن',
+      withdrawTitle:'درخواست برداشت وجه', amount:'مبلغ (افغانی)', method:'روش پرداخت', accountField:'نمبر حساب / شماره تماس', submitWithdraw:'ثبت درخواست', closePage:'بستن صفحه',
+      supportOptions:['درآمد ثبت نشده','فعالیت تایید نشده','برداشت پرداخت نشده','مشکل حساب','سؤال دیگر']
+    },
+    'ps-AF': {
+      notifications:'خبرتیاوې', readAll:'ټول لوستل',
+      supportTitle:'د کاریاب ملاتړ', supportTopic:'د غوښتنې موضوع', supportSubject:'سرلیک (اختیاري)', supportMessage:'تفصیل', submitSupport:'غوښتنه ثبت کړئ', close:'بندول',
+      withdrawTitle:'د پیسو ایستلو غوښتنه', amount:'مبلغ (افغانۍ)', method:'د تادیې طریقه', accountField:'د حساب شمېره / د اړیکې شمېره', submitWithdraw:'غوښتنه ثبت کړئ', closePage:'پاڼه بنده کړئ',
+      supportOptions:['عاید نه دی ثبت شوی','فعالیت نه دی تایید شوی','ایستل نه دي تادیه شوي','د حساب ستونزه','بله پوښتنه']
+    },
+    en: {
+      notifications:'Notifications', readAll:'Read all',
+      supportTitle:'Kariyab Support', supportTopic:'Request topic', supportSubject:'Subject (optional)', supportMessage:'Details', submitSupport:'Submit request', close:'Close',
+      withdrawTitle:'Withdrawal request', amount:'Amount (AFN)', method:'Payment method', accountField:'Account / phone number', submitWithdraw:'Submit request', closePage:'Close',
+      supportOptions:['Earning not recorded','Task not approved','Withdrawal not paid','Account issue','Other']
+    }
+  };
+  const m = modalText[lang] || modalText['fa-AF'];
+  setText('#notifications-title',m.notifications);
+  setText('#notifications-sheet .account-head button:first-of-type',m.readAll);
+  setText('#support-modal h3',m.supportTitle);
+  setText('#support-modal .input-group:nth-of-type(1) label',m.supportTopic);
+  setText('#support-modal .input-group:nth-of-type(2) label',m.supportSubject);
+  setText('#support-modal .input-group:nth-of-type(3) label',m.supportMessage);
+  setText('#support-modal .modal-content > button:nth-of-type(1)',m.submitSupport);
+  setText('#support-modal .modal-content > button:nth-of-type(2)',m.close);
+  document.querySelectorAll('#support-category option').forEach((o,i)=>{ if(m.supportOptions[i]) o.textContent=m.supportOptions[i]; });
+  setText('#withdraw-modal h3',m.withdrawTitle);
+  setText('#withdraw-modal .input-group:nth-of-type(1) label',m.amount);
+  setText('#withdraw-modal .input-group:nth-of-type(2) label',m.method);
+  setText('#withdraw-modal .input-group:nth-of-type(3) label',m.accountField);
+  setText('#withdraw-modal .modal-content > button:nth-of-type(1)',m.submitWithdraw);
+  setText('#withdraw-modal .modal-content > button:nth-of-type(2)',m.closePage);
   const navLabels=[t.home,t.opportunities,t.withdraw,t.support,t.account];
   document.querySelectorAll('.mobile-bottom-nav button').forEach((button,index)=>{
     const icon=button.querySelector('.nav-icon');

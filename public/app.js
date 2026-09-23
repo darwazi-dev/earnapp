@@ -381,14 +381,48 @@ function renderPendingInfo(data) {
 }
 
 // ---------- Withdrawal modal ----------
-function openWithdraw() {
+async function openWithdraw() {
   const modal = el('withdraw-modal');
 
   if (modal) {
     modal.classList.remove('hidden');
   }
 
-  loadWallet();
+  await Promise.all([
+    loadWallet(),
+    loadWithdrawalMethods()
+  ]);
+}
+
+async function loadWithdrawalMethods() {
+  const select = el('wd-method');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">در حال دریافت...</option>';
+
+  try {
+    const data = await api('/api/withdrawal-methods');
+    const methods = Array.isArray(data.methods) ? data.methods : [];
+
+    if (!methods.length) {
+      select.innerHTML = '<option value="">روش برداشت فعالی وجود ندارد</option>';
+      select.disabled = true;
+      return;
+    }
+
+    select.disabled = false;
+    select.innerHTML =
+      '<option value="">روش پرداخت را انتخاب کنید</option>' +
+      methods.map(method =>
+        '<option value="' + escapeAttribute(method.code) + '">' +
+        escapeHtml(method.name) +
+        '</option>'
+      ).join('');
+  } catch (error) {
+    select.innerHTML = '<option value="">دریافت روش‌ها ناموفق بود</option>';
+    select.disabled = true;
+    showErr('wd-err', error.message);
+  }
 }
 
 function closeWithdraw() {

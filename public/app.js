@@ -207,8 +207,70 @@ async function enterApp() {
 
   await Promise.allSettled([
     loadTasks(),
-    loadWalletSummary()
+    loadWalletSummary(),
+    loadProfile()
   ]);
+}
+
+// ---------- Profile photo ----------
+function chooseProfilePhoto() {
+  el('profile-photo-input')?.click();
+}
+
+function renderProfilePhoto(photo) {
+  const avatar = el('profile-avatar');
+  if (!avatar) return;
+  if (photo) {
+    avatar.innerHTML = '<img src="' + photo + '" alt="عکس پروفایل">';
+  } else {
+    avatar.textContent = (USER_NAME || 'ک').trim().charAt(0) || 'ک';
+  }
+}
+
+async function loadProfile() {
+  try {
+    const data = await api('/api/profile');
+    renderProfilePhoto(data.profile_photo || '');
+  } catch (error) {
+    console.error('Profile:', error);
+  }
+}
+
+async function uploadProfilePhoto(file) {
+  if (!file) return;
+  if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+    toast('فقط تصویر JPG، PNG یا WebP انتخاب کنید');
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    toast('حجم تصویر باید کمتر از ۸ مگابایت باشد');
+    return;
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const max = 320;
+    const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+
+    const photo = canvas.toDataURL('image/jpeg', 0.78);
+    const data = await api('/api/profile/photo', {
+      method: 'POST',
+      body: JSON.stringify({ photo })
+    });
+    renderProfilePhoto(data.photo);
+    toast('عکس پروفایل ذخیره شد');
+  } catch (error) {
+    toast(error.message || 'آپلود عکس انجام نشد');
+  } finally {
+    const input = el('profile-photo-input');
+    if (input) input.value = '';
+  }
 }
 
 // ---------- Opportunities ----------

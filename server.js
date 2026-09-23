@@ -1921,6 +1921,110 @@ app.get(
 );
 
 // =====================================================
+// ADMIN SUPPORT TICKETS
+// =====================================================
+
+app.get(
+  '/api/admin/support/tickets',
+  adminRequired,
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        `
+        SELECT
+          s.id,
+          s.ticket_id,
+          s.category,
+          s.subject,
+          s.message,
+          s.status,
+          s.created_at,
+          s.updated_at,
+          u.name AS user_name,
+          u.phone AS user_phone
+        FROM support_tickets s
+        JOIN users u ON u.id = s.user_id
+        ORDER BY s.created_at DESC
+        LIMIT 200
+        `
+      );
+
+      res.json({ tickets: result.rows });
+    } catch (error) {
+      console.error('Admin support tickets failed:', error);
+      res.status(500).json({ error: 'دریافت درخواست‌های پشتیبانی انجام نشد' });
+    }
+  }
+);
+
+app.post(
+  '/api/admin/support/tickets/:id/status',
+  adminRequired,
+  async (req, res) => {
+    const status = String(req.body.status || '').trim().toUpperCase();
+    const allowed = new Set(['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']);
+
+    if (!allowed.has(status)) {
+      return res.status(400).json({ error: 'وضعیت پشتیبانی معتبر نیست' });
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `
+        UPDATE support_tickets
+        SET status = $2, updated_at = NOW()
+        WHERE id = $1
+        RETURNING id, ticket_id, status
+        `,
+        [req.params.id, status]
+      );
+
+      if (!result.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'درخواست پشتیبانی یافت نشد' });
+      }
+
+      await client.query(
+        `
+        INSERT INTO admin_actions (
+          action_type,
+          entity_type,
+          entity_id,
+          metadata
+        )
+        VALUES (
+          'SUPPORT_STATUS_CHANGED',
+          'SUPPORT_TICKET',
+          $1,
+          $2::jsonb
+        )
+        `,
+        [
+          String(result.rows[0].id),
+          JSON.stringify({
+            ticket_id: result.rows[0].ticket_id,
+            status
+          })
+        ]
+      );
+
+      await client.query('COMMIT');
+      res.json({ ok: true, ticket: result.rows[0] });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Update support ticket failed:', error);
+      res.status(500).json({ error: 'تغییر وضعیت پشتیبانی انجام نشد' });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// =====================================================
 // ADMIN WITHDRAWALS
 // =====================================================
 

@@ -66,10 +66,25 @@
     .side-menu.open{transform:translateX(0)} .menu-backdrop.open{display:block}
     .side-menu h2{margin:8px 0 22px;color:#075f3a}.side-menu a,.side-menu button{display:block;width:100%;box-sizing:border-box;text-align:right;padding:12px 10px;margin:3px 0;border:0;border-bottom:1px solid #eee;background:transparent;color:#17352d;text-decoration:none;font:inherit;cursor:pointer}
     .side-menu .menu-close{text-align:left;font-size:24px;border:0;padding:0 4px 8px}
-    @media(max-width:767px){.menu-toggle{top:132px;left:28px;width:42px;height:42px}.legal-footer{display:none}}
+    @media(max-width:767px){.legal-footer{display:none}}
+    /* Kariyab mobile app shell */
+    .profile-avatar{display:none}
+    .mobile-bottom-nav{display:none}
+    @media(max-width:767px){
+      body{padding:0 0 86px;background:#f4f7f5;display:block}
+      .container{margin:0 auto;padding:72px 16px 20px;border-radius:0;box-shadow:none;min-height:100vh;background:#fff}
+      .menu-toggle{top:18px;left:18px;width:44px;height:44px;border-radius:50%;background:#fff;color:#075f3a;border:1px solid #e5ebe7;box-shadow:0 3px 12px rgba(0,0,0,.08)}
+      .profile-avatar{display:flex;position:fixed;top:18px;right:18px;z-index:1080;width:44px;height:44px;border-radius:50%;background:#e6f4ed;color:#075f3a;align-items:center;justify-content:center;font-weight:700;border:1px solid #d7e9df}
+      .user-card{margin-top:4px;border-radius:18px;padding:22px 20px}
+      .mobile-bottom-nav{position:fixed;display:grid;grid-template-columns:repeat(4,1fr);left:12px;right:12px;bottom:max(10px,env(safe-area-inset-bottom));z-index:1050;background:#fff;border:1px solid #e8ecea;border-radius:22px;box-shadow:0 8px 28px rgba(0,0,0,.13);padding:7px 5px}
+      .mobile-bottom-nav button{margin:0;padding:7px 2px;background:transparent;color:#44534e;border-radius:14px;font-size:11px;font-weight:600;line-height:1.25}
+      .mobile-bottom-nav button .nav-icon{display:block;font-size:20px;margin-bottom:3px}
+      .mobile-bottom-nav button.active{background:#e6f4ed;color:#056839}
+    }
 </style>
 </head>
 <body>
+  <div id="profile-avatar" class="profile-avatar" aria-label="پروفایل">ک</div>
   <button class="menu-toggle" type="button" aria-label="باز کردن منو" aria-controls="kariyab-menu" aria-expanded="false" onclick="toggleKariyabMenu(true)">☰</button>
   <div id="menu-backdrop" class="menu-backdrop" onclick="toggleKariyabMenu(false)"></div>
   <nav id="kariyab-menu" class="side-menu" aria-label="منوی کاریاب">
@@ -246,6 +261,13 @@
     </div>
   </div>
 
+  <nav class="mobile-bottom-nav" aria-label="ناوبری اصلی">
+    <button type="button" class="active" onclick="window.scrollTo({top:0,behavior:'smooth'})"><span class="nav-icon">⌂</span>خانه</button>
+    <button type="button" onclick="document.getElementById('tasks-list')?.scrollIntoView({behavior:'smooth'})"><span class="nav-icon">▣</span>فرصت‌ها</button>
+    <button type="button" onclick="openWithdraw()"><span class="nav-icon">؋</span>برداشت</button>
+    <button type="button" onclick="openSupport()"><span class="nav-icon">◉</span>پشتیبانی</button>
+  </nav>
+
   <footer class="legal-footer">
     <a href="/about.html">درباره کاریاب</a> ·
     <a href="/terms.html">شرایط استفاده</a> ·
@@ -266,6 +288,14 @@
       backdrop.classList.toggle('open',open);
       if(toggle) toggle.setAttribute('aria-expanded',open?'true':'false');
     }
+    function syncProfileAvatar(){
+      const name=(document.getElementById('user-name')?.textContent||'کاریاب').trim();
+      const avatar=document.getElementById('profile-avatar');
+      if(avatar) avatar.textContent=name.charAt(0)||'ک';
+    }
+    const nameNode=document.getElementById('user-name');
+    if(nameNode) new MutationObserver(syncProfileAvatar).observe(nameNode,{childList:true,subtree:true,characterData:true});
+    syncProfileAvatar();
     document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleKariyabMenu(false)});
   </script>
   <script src="app.js"></script>

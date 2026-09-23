@@ -703,7 +703,7 @@ async function loadSupportTickets(){
         <td style="max-width:260px">${escapeHtml(t.message)}</td>
         <td><span class="pill s-other">${escapeHtml(supportStatusLabel(t.status))}</span></td>
         <td>
-          <select onchange="changeSupportStatus(${Number(t.id)},this.value)" style="padding:8px;border-radius:8px">
+          <select class="support-status-select" data-ticket-id="${Number(t.id)}" style="padding:8px;border-radius:8px">
             <option value="">تغییر وضعیت</option>
             <option value="OPEN">باز</option>
             <option value="IN_PROGRESS">در حال رسیدگی</option>
@@ -899,7 +899,7 @@ async function loadFraudFlags(){
         <td style="max-width:280px">${escapeHtml(typeof f.details==='string'?f.details:JSON.stringify(f.details || {}))}</td>
         <td>${escapeHtml(f.status)}</td>
         <td>
-          <select onchange="changeFraudStatus(${Number(f.id)},this.value)" style="padding:8px;border-radius:8px">
+          <select class="fraud-status-select" data-flag-id="${Number(f.id)}" style="padding:8px;border-radius:8px">
             <option value="">تغییر وضعیت</option>
             <option value="OPEN">باز</option>
             <option value="UNDER_REVIEW">در حال بررسی</option>

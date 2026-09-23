@@ -27,6 +27,13 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
+      - name: Install PostgreSQL 18 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSLo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo $VERSION_CODENAME)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-18
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Download backup artifact
@@ -59,6 +66,6 @@ jobs:
         env:
           PGPASSWORD: test-only-password
         run: |
-          pg_restore --host=127.0.0.1 --port=5432 --username=kariyab --dbname=kariyab_restore_test --no-owner --no-privileges kariyab.dump
-          psql --host=127.0.0.1 --port=5432 --username=kariyab --dbname=kariyab_restore_test -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) AS users FROM users;"
-          psql --host=127.0.0.1 --port=5432 --username=kariyab --dbname=kariyab_restore_test -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) AS ledger_rows FROM wallet_ledger;"
+          /usr/lib/postgresql/18/bin/pg_restore --host=127.0.0.1 --port=5432 --username=kariyab --dbname=kariyab_restore_test --no-owner --no-privileges kariyab.dump
+          /usr/lib/postgresql/18/bin/psql --host=127.0.0.1 --port=5432 --username=kariyab --dbname=kariyab_restore_test -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) AS users FROM users;"
+          /usr/lib/postgresql/18/bin/psql --host=127.0.0.1 --port=5432 --username=kariyab --dbname=kariyab_restore_test -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) AS ledger_rows FROM wallet_ledger;"

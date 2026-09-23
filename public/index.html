@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>کاریاب — کسب درآمد آنلاین</title>
   <style>
-    :root { --primary: #056839; --primary-light: #e6f4ed; --accent: #ffc107; --text: #333; --bg: #f4f7f5; }
+    :root { --primary: #D71212; --primary-dark: #9f0d0d; --primary-light: #fdecec; --accent: #111111; --text: #171717; --bg: #f6f6f6; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: Tahoma, sans-serif; }
     body { background: var(--bg); color: var(--text); padding: 15px; display: flex; justify-content: center; }
     .container { width: 100%; max-width: 500px; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 10px; }
@@ -19,7 +19,7 @@
     .hidden { display: none !important; }
     .err { color: #dc3545; font-size: 13px; margin-top: 5px; text-align: center; font-weight: bold; }
     .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 1000; }
-    .user-card { background: linear-gradient(135deg, #056839 0%, #034626 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
+    .user-card { background: linear-gradient(135deg, #D71212 0%, #9f0d0d 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
     .balance-title { font-size: 14px; opacity: 0.9; }
     .balance-amount { font-size: 32px; font-weight: bold; margin: 10px 0; }
     .task { background: white; border: 1px solid #e5e5e5; padding: 15px; border-radius: 10px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -34,7 +34,7 @@
     .wd-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; font-size: 13px; }
     .status-pill { padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
     .status-pending { background: #fff3cd; color: #856404; }
-    .status-approved { background: #d4edda; color: #155724; }
+    .status-approved { background: #d4edda; color: #7a0b0b; }
     .status-rejected { background: #f8d7da; color: #721c24; }
   
     /* Responsive application shell */
@@ -47,9 +47,9 @@
       text-align:center;
       font-size:12px;
       line-height:2;
-      color:#52645e;
+      color:#555555;
     }
-    .legal-footer a{display:inline-block;margin:0 3px;color:#087f4f;text-decoration:none;}
+    .legal-footer a{display:inline-block;margin:0 3px;color:#D71212;text-decoration:none;}
     .legal-footer a:hover{text-decoration:underline;}
     @media (min-width: 768px){
       body{display:block !important;}
@@ -60,27 +60,27 @@
       .legal-footer{width:calc(100% - 28px);margin:14px auto 24px;padding:10px 8px;}
     }
 
-    .menu-toggle{position:fixed;top:16px;left:16px;z-index:1100;width:44px;height:44px;border:0;border-radius:12px;background:#075f3a;color:#fff;font-size:25px;line-height:1;cursor:pointer;box-shadow:0 5px 18px rgba(0,0,0,.12)}
+    .menu-toggle{position:fixed;top:16px;left:16px;z-index:1100;width:44px;height:44px;border:0;border-radius:12px;background:#D71212;color:#fff;font-size:25px;line-height:1;cursor:pointer;box-shadow:0 5px 18px rgba(0,0,0,.12)}
     .menu-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:1090;display:none}
     .side-menu{position:fixed;top:0;left:0;width:min(82vw,320px);height:100vh;background:#fff;z-index:1101;transform:translateX(-105%);transition:transform .22s ease;box-shadow:6px 0 24px rgba(0,0,0,.14);padding:24px 18px;box-sizing:border-box;overflow:auto}
     .side-menu.open{transform:translateX(0)} .menu-backdrop.open{display:block}
-    .side-menu h2{margin:8px 0 22px;color:#075f3a}.side-menu a,.side-menu button{display:block;width:100%;box-sizing:border-box;text-align:right;padding:12px 10px;margin:3px 0;border:0;border-bottom:1px solid #eee;background:transparent;color:#17352d;text-decoration:none;font:inherit;cursor:pointer}
+    .side-menu h2{margin:8px 0 22px;color:#D71212}.side-menu a,.side-menu button{display:block;width:100%;box-sizing:border-box;text-align:right;padding:12px 10px;margin:3px 0;border:0;border-bottom:1px solid #eee;background:transparent;color:#171717;text-decoration:none;font:inherit;cursor:pointer}
     .side-menu .menu-close{text-align:left;font-size:24px;border:0;padding:0 4px 8px}
     @media(max-width:767px){.legal-footer{display:none}}
     /* Kariyab mobile app shell */
     .profile-avatar{display:none}
     .mobile-bottom-nav{display:none}
     @media(max-width:767px){
-      body{padding:0 0 86px;background:#f4f7f5;display:block}
+      body{padding:0 0 86px;background:#f6f6f6;display:block}
       .container{margin:0 auto;padding:72px 16px 20px;border-radius:0;box-shadow:none;min-height:100vh;background:#fff}
-      .menu-toggle{top:18px;left:18px;width:46px;height:46px;min-width:46px;min-height:46px;padding:0;margin:0;border-radius:50%;background:#fff;color:#075f3a;border:1px solid #e5ebe7;box-shadow:0 3px 12px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1}
-      .profile-avatar{display:flex;position:fixed;top:18px;right:18px;z-index:1080;width:46px;height:46px;min-width:46px;min-height:46px;padding:0;margin:0;border-radius:50%;background:#e6f4ed;color:#075f3a;align-items:center;justify-content:center;font-weight:700;border:1px solid #d7e9df;line-height:1;overflow:hidden;cursor:pointer}
+      .menu-toggle{top:18px;left:18px;width:46px;height:46px;min-width:46px;min-height:46px;padding:0;margin:0;border-radius:50%;background:#fff;color:#D71212;border:1px solid #e5ebe7;box-shadow:0 3px 12px rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;font-size:24px;line-height:1}
+      .profile-avatar{display:flex;position:fixed;top:18px;right:18px;z-index:1080;width:46px;height:46px;min-width:46px;min-height:46px;padding:0;margin:0;border-radius:50%;background:#fdecec;color:#D71212;align-items:center;justify-content:center;font-weight:700;border:1px solid #f3caca;line-height:1;overflow:hidden;cursor:pointer}
       .profile-avatar img{width:100%;height:100%;object-fit:cover;display:block}
       .user-card{margin-top:4px;border-radius:18px;padding:22px 20px}
       .mobile-bottom-nav{position:fixed;display:grid;grid-template-columns:repeat(4,1fr);left:12px;right:12px;bottom:max(10px,env(safe-area-inset-bottom));z-index:1050;background:#fff;border:1px solid #e8ecea;border-radius:22px;box-shadow:0 8px 28px rgba(0,0,0,.13);padding:7px 5px}
-      .mobile-bottom-nav button{margin:0;padding:7px 2px;background:transparent;color:#44534e;border-radius:14px;font-size:11px;font-weight:600;line-height:1.25}
+      .mobile-bottom-nav button{margin:0;padding:7px 2px;background:transparent;color:#333333;border-radius:14px;font-size:11px;font-weight:600;line-height:1.25}
       .mobile-bottom-nav button .nav-icon{display:block;font-size:20px;margin-bottom:3px}
-      .mobile-bottom-nav button.active{background:#e6f4ed;color:#056839}
+      .mobile-bottom-nav button.active{background:#fdecec;color:#D71212}
     }
 </style>
 </head>
@@ -158,8 +158,8 @@
       <h3 style="text-align:right; font-size:15px; margin-bottom:10px;">تسک‌های امروز</h3>
       <div id="tasks-list"></div>
 
-      <button onclick="openWithdraw()" style="margin-top:20px; background:#044d2b;">برداشت پول ؋</button>
-      <button onclick="openSupport()" style="margin-top:10px; background:#087F4F;">پشتیبانی</button>
+      <button onclick="openWithdraw()" style="margin-top:20px; background:#111111;">برداشت پول ؋</button>
+      <button onclick="openSupport()" style="margin-top:10px; background:#D71212;">پشتیبانی</button>
     </div>
   </div>
 

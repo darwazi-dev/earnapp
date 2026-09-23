@@ -106,6 +106,7 @@
       <div id="tasks-list"></div>
 
       <button onclick="openWithdraw()" style="margin-top:20px; background:#044d2b;">برداشت پول ؋</button>
+      <button onclick="openSupport()" style="margin-top:10px; background:#087F4F;">پشتیبانی</button>
     </div>
   </div>
 
@@ -140,6 +141,35 @@
 
       <div id="forgot-err" class="err hidden" style="margin-bottom: 10px;"></div>
       <button onclick="closeForgotModal()" style="background:#666; margin-top:10px;">انصراف</button>
+    </div>
+  </div>
+
+  <!-- مودال پشتیبانی -->
+  <div id="support-modal" class="withdraw-modal hidden">
+    <div class="modal-content">
+      <h3>پشتیبانی کاریاب</h3>
+      <div class="input-group">
+        <label>موضوع درخواست</label>
+        <select id="support-category">
+          <option value="EARNING_NOT_RECORDED">درآمد ثبت نشده</option>
+          <option value="TASK_NOT_APPROVED">فعالیت تایید نشده</option>
+          <option value="WITHDRAWAL_NOT_PAID">برداشت پرداخت نشده</option>
+          <option value="ACCOUNT">مشکل حساب</option>
+          <option value="OTHER">سؤال دیگر</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>عنوان (اختیاری)</label>
+        <input type="text" id="support-subject" maxlength="255" placeholder="عنوان کوتاه">
+      </div>
+      <div class="input-group">
+        <label>توضیحات</label>
+        <textarea id="support-message" maxlength="5000" rows="5" placeholder="مشکل یا سؤال خود را بنویسید" style="width:100%;padding:12px;border:1px solid #ccc;border-radius:8px;font-size:14px;resize:vertical;"></textarea>
+      </div>
+      <div id="support-err" class="err hidden"></div>
+      <button onclick="submitSupportTicket()">ثبت درخواست</button>
+      <button onclick="closeSupport()" style="background:#666;margin-top:10px;">بستن</button>
+      <div id="support-history" style="margin-top:20px;"></div>
     </div>
   </div>
 

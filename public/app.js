@@ -372,6 +372,7 @@ async function openAccount() {
   if (sheet) sheet.classList.remove('hidden');
   if (!PROFILE_DATA) await loadProfile();
   else renderAccount(PROFILE_DATA);
+  await loadIdentityVerificationStatus();
 }
 
 function closeAccount() {
@@ -437,6 +438,110 @@ async function uploadProfilePhoto(file) {
   } finally {
     const input = el('profile-photo-input');
     if (input) input.value = '';
+  }
+}
+
+// ---------- Identity verification ----------
+async function imageFileToDataUrl(file) {
+  if (!file || !['image/jpeg','image/png','image/webp'].includes(file.type)) {
+    throw new Error('فقط تصویر JPG، PNG یا WebP انتخاب کنید');
+  }
+  if (file.size > 8 * 1024 * 1024) throw new Error('حجم هر تصویر باید کمتر از ۸ مگابایت باشد');
+
+  const bitmap = await createImageBitmap(file);
+  const max = 1000;
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close?.();
+
+  let quality = 0.78;
+  let data = canvas.toDataURL('image/jpeg', quality);
+  while (data.length > 650000 && quality > 0.42) {
+    quality -= 0.08;
+    data = canvas.toDataURL('image/jpeg', quality);
+  }
+  if (data.length > 700000) throw new Error('تصویر پس از فشرده‌سازی هنوز بزرگ است؛ تصویر دیگری انتخاب کنید');
+  return data;
+}
+
+function identityStatusLabel(status) {
+  return ({
+    UNVERIFIED: 'تأیید نشده',
+    UNDER_REVIEW: 'در حال بررسی',
+    VERIFIED: 'تأیید شده',
+    REJECTED: 'رد شده',
+    CANCELLED: 'لغو شده'
+  })[String(status || '').toUpperCase()] || 'تأیید نشده';
+}
+
+async function loadIdentityVerificationStatus() {
+  try {
+    const data = await api('/api/identity-verification');
+    const status = String(data.status || 'UNVERIFIED').toUpperCase();
+    const accountStatus = el('identity-status');
+    const modalStatus = el('identity-current-status');
+    const submit = el('identity-submit-btn');
+    if (accountStatus) accountStatus.textContent = identityStatusLabel(status);
+    if (modalStatus) {
+      modalStatus.textContent = status === 'REJECTED' && data.verification?.rejection_reason
+        ? 'وضعیت: رد شده — ' + data.verification.rejection_reason
+        : 'وضعیت: ' + identityStatusLabel(status);
+    }
+    if (submit) {
+      submit.disabled = status === 'UNDER_REVIEW' || status === 'VERIFIED';
+      submit.textContent = status === 'VERIFIED' ? 'هویت تأیید شده' :
+        status === 'UNDER_REVIEW' ? 'در حال بررسی' : 'ارسال برای بررسی';
+    }
+    return data;
+  } catch (error) {
+    const status = el('identity-status');
+    if (status) status.textContent = 'دریافت وضعیت ناموفق بود';
+    return null;
+  }
+}
+
+async function openIdentityVerification() {
+  hideErr('identity-err');
+  el('identity-modal')?.classList.remove('hidden');
+  await loadIdentityVerificationStatus();
+}
+
+function closeIdentityVerification() {
+  el('identity-modal')?.classList.add('hidden');
+  hideErr('identity-err');
+}
+
+async function submitIdentityVerification() {
+  hideErr('identity-err');
+  const documentType = el('identity-document-type')?.value || '';
+  const documentNumber = el('identity-document-number')?.value.trim() || '';
+  const documentFile = el('identity-document-image')?.files?.[0];
+  const selfieFile = el('identity-selfie-image')?.files?.[0];
+
+  if (documentNumber.length < 4 || !documentFile || !selfieFile) {
+    return showErr('identity-err', 'شماره مدرک، تصویر مدرک و سلفی را کامل وارد کنید');
+  }
+
+  const submit = el('identity-submit-btn');
+  try {
+    if (submit) { submit.disabled = true; submit.textContent = 'در حال ارسال...'; }
+    const [documentImage, selfieImage] = await Promise.all([
+      imageFileToDataUrl(documentFile),
+      imageFileToDataUrl(selfieFile)
+    ]);
+    await api('/api/identity-verification', {
+      method: 'POST',
+      body: JSON.stringify({ documentType, documentNumber, documentImage, selfieImage })
+    });
+    toast('درخواست احراز هویت برای بررسی ارسال شد');
+    await loadIdentityVerificationStatus();
+  } catch (error) {
+    showErr('identity-err', error.message);
+    if (submit) submit.disabled = false;
   }
 }
 

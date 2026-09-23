@@ -16,18 +16,40 @@ function toggleKariyabMenu(open){
     if(nameNode) new MutationObserver(syncProfileAvatar).observe(nameNode,{childList:true,subtree:true,characterData:true});
     syncProfileAvatar();
     document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleKariyabMenu(false)});
-function runUiHandler(el,attr,event){
-  const raw=el.getAttribute(attr);
-  if(!raw)return;
-  const code=decodeURIComponent(raw);
-  const fn=new Function('event',code);
-  fn.call(el,event);
-}
-document.addEventListener('click',event=>{
-  const el=event.target.closest('[data-onclick]');
-  if(el) runUiHandler(el,'data-onclick',event);
-});
-document.addEventListener('change',event=>{
-  const el=event.target.closest('[data-onchange]');
-  if(el) runUiHandler(el,'data-onchange',event);
-});
+
+const UI_ACTIONS=new Map([
+['click-1',()=>openAccount()],
+['change-2',e=>uploadProfilePhoto(e.currentTarget.files?.[0])],
+['click-3',()=>toggleKariyabMenu(true)],
+['click-4',()=>toggleKariyabMenu(false)],
+['click-5',()=>toggleKariyabMenu(false)],
+['click-6',()=>{toggleKariyabMenu(false);openSupport()}],
+['click-7',()=>doLogin()],
+['click-8',()=>showView('register')],
+['click-9',()=>openForgotModal()],
+['click-10',()=>doRegister()],
+['click-11',()=>showView('login')],
+['click-12',()=>openNotifications()],
+['click-13',()=>logout()],
+['click-14',()=>openWithdraw()],
+['click-15',()=>openSupport()],
+['click-16',e=>{if(e.target===e.currentTarget)closeNotifications()}],
+['click-17',()=>markAllNotificationsRead()],
+['click-18',()=>closeNotifications()],
+['click-19',e=>{if(e.target===e.currentTarget)closeAccount()}],
+['click-20',()=>closeAccount()],
+['click-21',()=>saveAccountSettings()],
+['click-22',()=>chooseProfilePhoto()],
+['click-23',()=>logout()],
+['click-24',()=>submitSupportTicket()],
+['click-25',()=>closeSupport()],
+['click-26',()=>submitWithdraw()],
+['click-27',()=>closeWithdraw()],
+['click-28',()=>window.scrollTo({top:0,behavior:'smooth'})],
+['click-29',()=>document.getElementById('tasks-list')?.scrollIntoView({behavior:'smooth'})],
+['click-30',()=>openWithdraw()],
+['click-31',()=>openSupport()],
+['click-32',()=>openAccount()]
+]);
+document.addEventListener('click',e=>{const el=e.target.closest('[data-ui^="click-"]');if(!el)return;const fn=UI_ACTIONS.get(el.dataset.ui);if(fn)fn({target:e.target,currentTarget:el});});
+document.addEventListener('change',e=>{const el=e.target.closest('[data-ui^="change-"]');if(!el)return;const fn=UI_ACTIONS.get(el.dataset.ui);if(fn)fn({target:e.target,currentTarget:el});});

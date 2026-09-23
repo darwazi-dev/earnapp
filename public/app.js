@@ -581,7 +581,7 @@ async function loadTasks() {
         <button
           class="task-btn"
           type="button"
-          onclick="openRealOffers()"
+          data-action="open-real-offers"
         >
           مشاهده
         </button>
@@ -613,7 +613,7 @@ async function loadTasks() {
           <button
             class="task-btn"
             ${task.done ? 'disabled' : ''}
-            onclick="completeTask('${escapeAttribute(task.id)}')"
+            data-action="complete-task" data-task-id="${escapeAttribute(task.id)}"
           >
             ${task.done ? 'انجام شد' : 'شروع'}
           </button>
@@ -791,7 +791,7 @@ async function loadNotifications() {
     }
     list.innerHTML = items.map(item =>
       '<div class="notification-item ' + (item.read ? '' : 'unread') +
-      '" onclick="markNotificationRead(' + Number(item.id) + ')">' +
+      '" data-action="notification-read" data-notification-id="' + Number(item.id) + '">' +
       '<div>' + escapeHtml(item.title) + '</div>' +
       '<small>' + escapeHtml(item.body) + '</small>' +
       '<small>' + escapeHtml(new Date(item.createdAt).toLocaleString('fa-AF')) + '</small>' +
@@ -1125,6 +1125,15 @@ function submitResetPassword() {
 }
 
 // ---------- Init ----------
+document.addEventListener('click', (event) => {
+  const actionEl = event.target.closest('[data-action]');
+  if (!actionEl) return;
+  const action = actionEl.dataset.action;
+  if (action === 'open-real-offers') return openRealOffers();
+  if (action === 'complete-task') return completeTask(actionEl.dataset.taskId);
+  if (action === 'notification-read') return markNotificationRead(Number(actionEl.dataset.notificationId));
+});
+
 document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', (event) => {
     const target = event.target.closest('button');

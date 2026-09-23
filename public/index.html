@@ -36,7 +36,30 @@
     .status-pending { background: #fff3cd; color: #856404; }
     .status-approved { background: #d4edda; color: #155724; }
     .status-rejected { background: #f8d7da; color: #721c24; }
-  </style>
+  
+    /* Responsive application shell */
+    body{overflow-x:hidden;}
+    .legal-footer{
+      width:min(100% - 32px, 500px);
+      margin:18px auto 32px;
+      padding:14px 16px;
+      box-sizing:border-box;
+      text-align:center;
+      font-size:12px;
+      line-height:2;
+      color:#52645e;
+    }
+    .legal-footer a{display:inline-block;margin:0 3px;color:#087f4f;text-decoration:none;}
+    .legal-footer a:hover{text-decoration:underline;}
+    @media (min-width: 768px){
+      body{display:block !important;}
+      .app-container,.container,#app{margin-left:auto !important;margin-right:auto !important;}
+      .legal-footer{clear:both;}
+    }
+    @media (max-width: 767px){
+      .legal-footer{width:calc(100% - 28px);margin:14px auto 24px;padding:10px 8px;}
+    }
+</style>
 </head>
 <body>
 
@@ -200,7 +223,7 @@
     </div>
   </div>
 
-  <footer style="max-width:500px;margin:22px auto 35px;text-align:center;font-size:12px;line-height:2;color:#52645e;padding:0 16px">
+  <footer class="legal-footer">
     <a href="/about.html">درباره کاریاب</a> ·
     <a href="/terms.html">شرایط استفاده</a> ·
     <a href="/privacy.html">حریم خصوصی</a> ·

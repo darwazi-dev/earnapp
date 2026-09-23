@@ -325,19 +325,32 @@ function authRequired(req, res, next) {
 }
 
 function adminRequired(req, res, next) {
-  const supplied =
-    req.headers['x-admin-password'];
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
 
-  if (
-    !supplied ||
-    !safeCompare(supplied, ADMIN_PASSWORD)
-  ) {
+  if (!token) {
     return res.status(401).json({
-      error: 'رمز ادمین اشتباه است'
+      error: 'نشست ادمین معتبر نیست'
     });
   }
 
-  next();
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      issuer: 'kariyab',
+      audience: 'kariyab-admin'
+    });
+
+    if (decoded.role !== 'ADMIN' || decoded.type !== 'ADMIN_SESSION') {
+      throw new Error('Invalid admin session');
+    }
+
+    req.adminSession = decoded;
+    next();
+  } catch {
+    return res.status(401).json({
+      error: 'نشست ادمین منقضی یا نامعتبر است'
+    });
+  }
 }
 
 // =====================================================
@@ -2241,24 +2254,34 @@ app.get(
 
 app.post(
   '/api/admin/login',
+  authLimiter,
   (req, res) => {
-    const password =
-      String(req.body.password || '');
+    const password = String(req.body.password || '');
 
-    if (
-      !password ||
-      !safeCompare(
-        password,
-        ADMIN_PASSWORD
-      )
-    ) {
+    if (!password || !safeCompare(password, ADMIN_PASSWORD)) {
       return res.status(401).json({
-        error:
-          'رمز ادمین اشتباه است'
+        error: 'رمز ادمین اشتباه است'
       });
     }
 
-    res.json({ ok: true });
+    const token = jwt.sign(
+      {
+        role: 'ADMIN',
+        type: 'ADMIN_SESSION'
+      },
+      JWT_SECRET,
+      {
+        expiresIn: '30m',
+        issuer: 'kariyab',
+        audience: 'kariyab-admin'
+      }
+    );
+
+    res.json({
+      ok: true,
+      token,
+      expiresInSeconds: 1800
+    });
   }
 );
 

@@ -1144,6 +1144,46 @@ app.get(
             );
           }
 
+          // High-value provider events are not auto-blocked; they are
+          // flagged for manual review while the earning remains pending.
+          const highValueThresholdMinor = 50000;
+          if (rewardMinor >= highValueThresholdMinor) {
+            const existingFlag = await client.query(
+              `
+              SELECT id
+              FROM fraud_flags
+              WHERE user_id = $1
+                AND flag_type = 'HIGH_VALUE_PROVIDER_EVENT'
+                AND status IN ('OPEN', 'UNDER_REVIEW')
+                AND details->>'provider_transaction_id' = $2
+              LIMIT 1
+              `,
+              [user.id, transId]
+            );
+
+            if (!existingFlag.rows.length) {
+              await client.query(
+                `
+                INSERT INTO fraud_flags (
+                  user_id, flag_type, severity, status, details
+                )
+                VALUES (
+                  $1, 'HIGH_VALUE_PROVIDER_EVENT', 'HIGH', 'OPEN', $2::jsonb
+                )
+                `,
+                [
+                  user.id,
+                  JSON.stringify({
+                    provider: 'CPX',
+                    provider_transaction_id: transId,
+                    reward_minor: rewardMinor,
+                    amount_usd: amountUsd
+                  })
+                ]
+              );
+            }
+          }
+
           const transactionId =
             publicId('CPX');
 
@@ -1302,6 +1342,40 @@ app.get(
           }
 
           if (tx.status === 'APPROVED') {
+            const existingReversalFlag = await client.query(
+              `
+              SELECT id
+              FROM fraud_flags
+              WHERE user_id = $1
+                AND flag_type = 'APPROVED_EARNING_REVERSED'
+                AND status IN ('OPEN', 'UNDER_REVIEW')
+                AND details->>'provider_transaction_id' = $2
+              LIMIT 1
+              `,
+              [user.id, transId]
+            );
+
+            if (!existingReversalFlag.rows.length) {
+              await client.query(
+                `
+                INSERT INTO fraud_flags (
+                  user_id, flag_type, severity, status, details
+                )
+                VALUES (
+                  $1, 'APPROVED_EARNING_REVERSED', 'HIGH', 'OPEN', $2::jsonb
+                )
+                `,
+                [
+                  user.id,
+                  JSON.stringify({
+                    provider: 'CPX',
+                    provider_transaction_id: transId,
+                    amount_minor: amount
+                  })
+                ]
+              );
+            }
+
             await client.query(
               `
               UPDATE wallets
@@ -1638,6 +1712,25 @@ app.post(
         return res.status(400).json({
           error:
             'روش برداشت فعال نیست'
+        });
+      }
+
+      const openFraud = await client.query(
+        `
+        SELECT id
+        FROM fraud_flags
+        WHERE user_id = $1
+          AND status IN ('OPEN', 'UNDER_REVIEW')
+          AND severity IN ('HIGH', 'CRITICAL')
+        LIMIT 1
+        `,
+        [req.userId]
+      );
+
+      if (openFraud.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(423).json({
+          error: 'برداشت این حساب برای بررسی امنیتی موقتاً متوقف است'
         });
       }
 

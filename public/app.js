@@ -1126,9 +1126,20 @@ function submitResetPassword() {
 
 // ---------- Init ----------
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('identity-open-btn')?.addEventListener('click', openIdentityVerification);
-  document.getElementById('identity-submit-btn')?.addEventListener('click', submitIdentityVerification);
-  document.getElementById('identity-close-btn')?.addEventListener('click', closeIdentityVerification);
+  document.addEventListener('click', (event) => {
+    const target = event.target.closest('button');
+    if (!target) return;
+    if (target.id === 'identity-open-btn') {
+      event.preventDefault();
+      openIdentityVerification();
+    } else if (target.id === 'identity-submit-btn') {
+      event.preventDefault();
+      submitIdentityVerification();
+    } else if (target.id === 'identity-close-btn') {
+      event.preventDefault();
+      closeIdentityVerification();
+    }
+  });
 
   if (TOKEN) {
     enterApp();

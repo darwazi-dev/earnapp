@@ -1135,7 +1135,21 @@ async function reconcileWallets(){
     if(data.ok){
       box.innerHTML='<strong style="color:var(--ok)">سالم ✓</strong> — '+escapeHtml(data.checkedUsers)+' کاربر بررسی شد و اختلافی پیدا نشد.';
     }else{
-      box.innerHTML='<strong style="color:var(--danger)">اختلاف مالی پیدا شد</strong> — '+escapeHtml(data.mismatches)+' مورد از '+escapeHtml(data.checkedUsers)+' کاربر. تا بررسی کامل، پرداخت جدید انجام ندهید.';
+      const details=(data.mismatchUsers || []).map(u =>
+        '<div style="margin-top:8px;direction:rtl">' +
+        'کاربر #'+escapeHtml(u.userId)+
+        ' | موجودی فعلی: '+escapeHtml(u.available)+' ؋' +
+        ' | موجودی مورد انتظار: '+escapeHtml(u.expectedAvailable)+' ؋' +
+        ' | اختلاف Available: '+escapeHtml(u.availableDifference)+' ؋' +
+        ' | Pending فعلی: '+escapeHtml(u.pending)+' ؋' +
+        ' | Pending مورد انتظار: '+escapeHtml(u.expectedPending)+' ؋' +
+        ' | اختلاف Pending: '+escapeHtml(u.pendingDifference)+' ؋' +
+        '</div>'
+      ).join('');
+
+      box.innerHTML='<strong style="color:var(--danger)">اختلاف مالی پیدا شد</strong> — '+
+        escapeHtml(data.mismatches)+' مورد از '+escapeHtml(data.checkedUsers)+
+        ' کاربر. تا بررسی کامل، پرداخت جدید انجام ندهید.'+details;
     }
   }catch(e){
     box.textContent=e.message;

@@ -82,6 +82,8 @@
     .account-sheet.hidden{display:none}.account-panel{width:min(100%,500px);max-height:88vh;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:22px 18px 28px;box-sizing:border-box}
     .account-head{display:flex;align-items:center;gap:12px;margin-bottom:18px}.account-photo{width:58px;height:58px;border-radius:50%;background:#fdecec;color:#D71212;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;overflow:hidden}.account-photo img{width:100%;height:100%;object-fit:cover}
     .account-row{padding:12px 0;border-bottom:1px solid #eee;font-size:13px}.account-row small{display:block;color:#777;margin-bottom:4px}.account-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+    .notification-fab{position:fixed;top:18px;left:50%;transform:translateX(-202px);z-index:25;width:46px;height:46px;border-radius:50%;background:#fff;color:#111;border:1px solid #e5e5e5;box-shadow:0 4px 14px rgba(0,0,0,.09);padding:0;font-size:19px}.notification-badge{position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 4px;border-radius:10px;background:#D71212;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center}.notification-badge.hidden{display:none}.notification-item{padding:12px 2px;border-bottom:1px solid #eee;cursor:pointer}.notification-item.unread{font-weight:700}.notification-item small{display:block;color:#777;margin-top:5px;font-weight:400}
+    @media(max-width:500px){.notification-fab{left:82px;transform:none}}
     @media(max-width:767px){
       body{padding:0 0 86px;background:#f6f6f6;display:block}
       .container{margin:0 auto;padding:72px 16px 20px;border-radius:0;box-shadow:none;min-height:100vh;background:#fff}
@@ -157,6 +159,7 @@
 
     <!-- صفحه اصلی برنامه -->
     <div id="view-main" class="hidden">
+      <button id="notification-fab" class="notification-fab" type="button" onclick="openNotifications()" aria-label="اعلان‌ها">♢<span id="notification-badge" class="notification-badge hidden">0</span></button>
       <div class="user-card">
         <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:10px;">
           <span id="user-name">کاربر</span>
@@ -183,6 +186,17 @@
         <h3 style="text-align:right;font-size:15px;margin:18px 0 8px;">فعالیت اخیر</h3>
         <div id="recent-activity-list"><div class="activity-empty">در حال دریافت...</div></div>
       </section>
+    </div>
+  </div>
+
+  <div id="notifications-sheet" class="account-sheet hidden" onclick="if(event.target===this)closeNotifications()">
+    <div class="account-panel" role="dialog" aria-modal="true" aria-labelledby="notifications-title">
+      <div class="account-head">
+        <div style="flex:1"><h3 id="notifications-title" style="margin:0">اعلان‌ها</h3></div>
+        <button type="button" onclick="markAllNotificationsRead()" style="width:auto;background:#f5f5f5;color:#111;padding:8px 10px">خواندن همه</button>
+        <button type="button" onclick="closeNotifications()" style="width:auto;background:#f2f2f2;color:#111;padding:8px 12px">×</button>
+      </div>
+      <div id="notifications-list"><div class="activity-empty">در حال دریافت...</div></div>
     </div>
   </div>
 

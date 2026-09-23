@@ -2021,6 +2021,68 @@ app.get(
 );
 
 // =====================================================
+// ADMIN FINANCIAL DIAGNOSTICS
+// =====================================================
+
+app.get(
+  '/api/admin/financial-diagnostics/:userId',
+  adminRequired,
+  async (req, res) => {
+    try {
+      const userId = String(req.params.userId);
+
+      const [wallet, transactions, ledger, withdrawals] = await Promise.all([
+        pool.query(
+          `SELECT * FROM wallets WHERE user_id = $1 LIMIT 1`,
+          [userId]
+        ),
+        pool.query(
+          `
+          SELECT id, transaction_id, type, amount_minor, status,
+                 provider_transaction_id, metadata, created_at, updated_at
+          FROM transactions
+          WHERE user_id = $1
+          ORDER BY id
+          `,
+          [userId]
+        ),
+        pool.query(
+          `
+          SELECT id, transaction_id, entry_type, amount_minor, status,
+                 metadata, created_at
+          FROM wallet_ledger
+          WHERE user_id = $1
+          ORDER BY id
+          `,
+          [userId]
+        ),
+        pool.query(
+          `
+          SELECT id, withdrawal_id, amount_minor, status,
+                 payment_reference, created_at, updated_at
+          FROM withdrawals
+          WHERE user_id = $1
+          ORDER BY id
+          `,
+          [userId]
+        )
+      ]);
+
+      res.json({
+        userId,
+        wallet: wallet.rows[0] || null,
+        transactions: transactions.rows,
+        ledger: ledger.rows,
+        withdrawals: withdrawals.rows
+      });
+    } catch (error) {
+      console.error('Financial diagnostics failed:', error);
+      res.status(500).json({ error: 'دریافت جزئیات مالی انجام نشد' });
+    }
+  }
+);
+
+// =====================================================
 // ADMIN WALLET RECONCILIATION
 // =====================================================
 

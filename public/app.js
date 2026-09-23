@@ -1,3 +1,5 @@
+document.addEventListener('DOMContentLoaded',()=>applyLanguage(localStorage.getItem('kariyabLanguage') || 'fa-AF'));
+
 const API = '';
 
 let TOKEN = localStorage.getItem('token') || null;
@@ -243,6 +245,64 @@ async function loadProfile() {
   }
 }
 
+const UI_I18N = {
+  'fa-AF': {
+    accountTitle:'حساب من', languageNote:'زبان انتخابی پس از ذخیره روی رابط برنامه اعمال می‌شود.',
+    home:'خانه', opportunities:'فرصت‌ها', withdraw:'برداشت', support:'پشتیبانی', account:'حساب من',
+    save:'ذخیره تنظیمات', changePhoto:'تغییر عکس', logout:'خروج از حساب',
+    incomeTitle:'فرصت‌های درآمد', withdrawMoney:'برداشت پول', supportTitle:'پشتیبانی',
+    recent:'فعالیت اخیر', saved:'تنظیمات حساب ذخیره شد'
+  },
+  'ps-AF': {
+    accountTitle:'زما حساب', languageNote:'ټاکل شوې ژبه له خوندي کولو وروسته د اپ پر مخ تطبیقېږي.',
+    home:'کور', opportunities:'فرصتونه', withdraw:'ایستل', support:'ملاتړ', account:'زما حساب',
+    save:'تنظیمات خوندي کړئ', changePhoto:'انځور بدل کړئ', logout:'له حسابه وتل',
+    incomeTitle:'د عاید فرصتونه', withdrawMoney:'پیسې وباسئ', supportTitle:'ملاتړ',
+    recent:'وروستی فعالیت', saved:'د حساب تنظیمات خوندي شول'
+  },
+  'en': {
+    accountTitle:'My account', languageNote:'The selected language is applied to the app after saving.',
+    home:'Home', opportunities:'Opportunities', withdraw:'Withdraw', support:'Support', account:'My account',
+    save:'Save settings', changePhoto:'Change photo', logout:'Log out',
+    incomeTitle:'Earning opportunities', withdrawMoney:'Withdraw money', supportTitle:'Support',
+    recent:'Recent activity', saved:'Account settings saved'
+  }
+};
+
+function applyLanguage(language) {
+  const lang = UI_I18N[language] ? language : 'fa-AF';
+  const t = UI_I18N[lang];
+  document.documentElement.lang = lang === 'en' ? 'en' : (lang === 'ps-AF' ? 'ps' : 'fa');
+  document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
+
+  const setText=(selector,text)=>{
+    const node=document.querySelector(selector);
+    if(node) node.textContent=text;
+  };
+  setText('#account-title',t.accountTitle);
+  setText('#language-note',t.languageNote);
+  setText('.mobile-bottom-nav button:nth-child(1)',t.home);
+  setText('.mobile-bottom-nav button:nth-child(2)',t.opportunities);
+  setText('.mobile-bottom-nav button:nth-child(3)',t.withdraw);
+  setText('.mobile-bottom-nav button:nth-child(4)',t.support);
+  setText('.mobile-bottom-nav button:nth-child(5)',t.account);
+  setText('.account-actions button:nth-child(1)',t.save);
+  setText('.account-actions button:nth-child(2)',t.changePhoto);
+  setText('#account-sheet .account-panel > button:last-child',t.logout);
+
+  document.querySelectorAll('#view-main h3').forEach(node=>{
+    if(node.textContent.includes('فرصت') || node.textContent.includes('عاید') || node.textContent.includes('Earning')) node.textContent=t.incomeTitle;
+    if(node.textContent.includes('فعالیت اخیر') || node.textContent.includes('وروستی فعالیت') || node.textContent.includes('Recent activity')) node.textContent=t.recent;
+  });
+
+  document.querySelectorAll('#view-main button').forEach(node=>{
+    const value=node.textContent.trim();
+    if(value.includes('برداشت پول') || value.includes('پیسې وباسئ') || value==='Withdraw money') node.textContent=t.withdrawMoney;
+    if(value==='پشتیبانی' || value==='ملاتړ' || value==='Support') node.textContent=t.supportTitle;
+  });
+  localStorage.setItem('kariyabLanguage',lang);
+}
+
 function renderAccount(data) {
   if (!data) return;
   const name = el('account-name');
@@ -254,6 +314,7 @@ function renderAccount(data) {
   if (name) name.value = data.name || '';
   if (phone) phone.textContent = data.phone || '';
   if (language) language.value = data.language || 'fa-AF';
+  applyLanguage(data.language || localStorage.getItem('kariyabLanguage') || 'fa-AF');
   if (notifications) notifications.checked = data.notifications_enabled !== false;
   if (status) status.textContent = data.phone_verified ? 'تأیید شده' : 'هنوز تأیید نشده';
   if (photo) {
@@ -287,8 +348,9 @@ async function saveAccountSettings() {
     USER_NAME = data.name;
     localStorage.setItem('userName', USER_NAME);
     await loadProfile();
-  await loadNotifications();
-    toast('تنظیمات حساب ذخیره شد');
+    await loadNotifications();
+    applyLanguage(data.language || language);
+    toast(UI_I18N[data.language || language]?.saved || UI_I18N['fa-AF'].saved);
   } catch (error) {
     toast(error.message);
   }

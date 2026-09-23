@@ -2143,7 +2143,16 @@ app.get(
             SELECT SUM(
               CASE
                 WHEN wl.entry_type = 'EARNING_APPROVED'
-                  THEN COALESCE((wl.metadata->>'amount_minor')::bigint, 0)
+                  THEN COALESCE(
+                    NULLIF(wl.amount_minor, 0),
+                    (
+                      SELECT ABS(t2.amount_minor)
+                      FROM transactions t2
+                      WHERE t2.id = wl.transaction_id
+                      LIMIT 1
+                    ),
+                    0
+                  )
                 WHEN wl.entry_type = 'REVERSAL'
                   THEN wl.amount_minor
                 WHEN wl.entry_type = 'WITHDRAWAL_RESERVED'
@@ -2179,14 +2188,10 @@ app.get(
         // approved excludes transactions whose current status is REVERSED.
         // Therefore an earning reversed after approval is already absent from
         // approved and must NOT be subtracted a second time.
-        // Reconstruct current available balance from economic events.
-        // Each earning that ever reached APPROVED contributes once; an
-        // approved reversal subtracts once; active/paid withdrawals subtract
-        // once. This avoids double-counting legacy zero-value transition rows.
-        const expectedAvailable =
-          approved +
-          reversedAfterApproval -
-          withdrawals;
+        // Reconstruct the wallet from the same immutable ledger events
+        // that actually mutate balances. Legacy EARNING_APPROVED rows store
+        // zero amount, so the source transaction amount is resolved by ID.
+        const expectedAvailable = Number(row.ledger_available_minor);
 
         return {
           userId: row.user_id,

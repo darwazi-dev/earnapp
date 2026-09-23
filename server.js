@@ -2075,7 +2075,25 @@ app.get(
               AND wd.status IN (
                 'REQUESTED','UNDER_REVIEW','APPROVED','PROCESSING','PAID'
               )
-          ), 0)::bigint AS reserved_or_paid_withdrawals_minor
+          ), 0)::bigint AS reserved_or_paid_withdrawals_minor,
+
+          COALESCE((
+            SELECT SUM(
+              CASE
+                WHEN wl.entry_type = 'EARNING_APPROVED'
+                  THEN COALESCE((wl.metadata->>'amount_minor')::bigint, 0)
+                WHEN wl.entry_type = 'REVERSAL'
+                  THEN wl.amount_minor
+                WHEN wl.entry_type = 'WITHDRAWAL_RESERVED'
+                  THEN wl.amount_minor
+                WHEN wl.entry_type = 'WITHDRAWAL_REFUND'
+                  THEN wl.amount_minor
+                ELSE 0
+              END
+            )
+            FROM wallet_ledger wl
+            WHERE wl.user_id = u.id
+          ), 0)::bigint AS ledger_available_minor
 
         FROM users u
         LEFT JOIN wallets w ON w.user_id = u.id
@@ -2099,8 +2117,12 @@ app.get(
         // approved excludes transactions whose current status is REVERSED.
         // Therefore an earning reversed after approval is already absent from
         // approved and must NOT be subtracted a second time.
-        const expectedAvailable =
-          approved - withdrawals;
+        // Available balance is reconstructed from the immutable ledger:
+        // approved earnings add funds, approved reversals remove funds,
+        // withdrawal reservations remove funds, and withdrawal refunds add them.
+        // This remains correct even when the source transaction's current
+        // status changes from APPROVED to REVERSED.
+        const expectedAvailable = Number(row.ledger_available_minor);
 
         return {
           userId: row.user_id,

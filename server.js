@@ -464,6 +464,20 @@ async function promotePendingEarnings(userId) {
 }
 
 // =====================================================
+// AUTH RECOVERY HELPERS
+// =====================================================
+
+function normalizePhone(value) {
+  return String(value || '').replace(/[\s()-]/g, '');
+}
+
+function maskPhone(value) {
+  const phone = normalizePhone(value);
+  if (phone.length <= 4) return '****';
+  return phone.slice(0, 3) + '***' + phone.slice(-3);
+}
+
+// =====================================================
 // HEALTH
 // =====================================================
 
@@ -710,6 +724,60 @@ app.post('/api/login', async (req, res) => {
     });
   }
 });
+
+// =====================================================
+// PASSWORD RECOVERY STATUS
+// =====================================================
+
+app.post(
+  '/api/auth/password-recovery/request',
+  async (req, res) => {
+    const phone = normalizePhone(req.body.phone);
+
+    if (!phone || phone.length < 7) {
+      return res.status(400).json({
+        error: 'شماره موبایل معتبر وارد کنید'
+      });
+    }
+
+    try {
+      const result = await pool.query(
+        `
+        SELECT id, phone, status
+        FROM users
+        WHERE phone = $1
+        LIMIT 1
+        `,
+        [phone]
+      );
+
+      // Do not reveal whether an account exists.
+      const generic = {
+        ok: true,
+        message:
+          'اگر حسابی با این شماره وجود داشته باشد، مراحل بازیابی پس از فعال‌شدن سرویس تأیید هویت ارسال می‌شود.'
+      };
+
+      if (!result.rows.length) {
+        return res.json(generic);
+      }
+
+      // Production reset is intentionally blocked until a real OTP provider
+      // is configured. Never issue reset tokens without identity verification.
+      return res.status(503).json({
+        error:
+          'بازیابی رمز هنوز فعال نشده است؛ سرویس تأیید شماره موبایل باید ابتدا متصل شود.',
+        recoveryAvailable: false,
+        phone: maskPhone(phone)
+      });
+    } catch (error) {
+      console.error('Password recovery request failed:', error);
+      res.status(500).json({
+        error: 'درخواست بازیابی رمز انجام نشد'
+      });
+    }
+  }
+);
 
 // =====================================================
 // TASKS

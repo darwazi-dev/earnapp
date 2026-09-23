@@ -351,7 +351,24 @@ td{
 
     </div>
 
-    <div class="card">
+        <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
+        <h3 style="margin:0">هشدارهای امنیتی / Fraud Flags</h3>
+        <button class="btn-primary" onclick="loadFraudFlags()">بروزرسانی</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>کاربر</th><th>نوع هشدار</th><th>شدت</th><th>جزئیات</th><th>وضعیت</th><th>بررسی دستی</th>
+            </tr>
+          </thead>
+          <tbody id="fraudTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
         <h3 style="margin:0">درخواست‌های پشتیبانی</h3>
         <button class="btn-primary" onclick="loadSupportTickets()">بروزرسانی</button>
@@ -687,6 +704,7 @@ async function loadDashboard(){
     ]);
 
     loadSupportTickets();
+    loadFraudFlags();
 
 
     document.getElementById(
@@ -1174,6 +1192,54 @@ async function showFinancialDiagnostics(userId){
     }
     win.document.write('<!doctype html><meta charset="utf-8"><title>Financial Diagnostics</title><pre style="white-space:pre-wrap;word-break:break-word;font-family:monospace;padding:20px">'+escapeHtml(lines.join('\n\n'))+'</pre>');
     win.document.close();
+  }catch(e){
+    showNotice(e.message,'error');
+  }
+}
+
+
+async function loadFraudFlags(){
+  const tbody=document.getElementById('fraudTable');
+  if(!tbody) return;
+  try{
+    const data=await adminApi('/api/admin/fraud-flags');
+    const flags=Array.isArray(data.flags)?data.flags:[];
+    if(!flags.length){
+      tbody.innerHTML='<tr><td colspan="6" class="empty">هشدار امنیتی بازی وجود ندارد</td></tr>';
+      return;
+    }
+    tbody.innerHTML=flags.map(f=>`
+      <tr>
+        <td>${escapeHtml(f.user_name || ('#'+f.user_id))}</td>
+        <td>${escapeHtml(f.flag_type)}</td>
+        <td>${escapeHtml(f.severity || '—')}</td>
+        <td style="max-width:280px">${escapeHtml(typeof f.details==='string'?f.details:JSON.stringify(f.details || {}))}</td>
+        <td>${escapeHtml(f.status)}</td>
+        <td>
+          <select onchange="changeFraudStatus(${Number(f.id)},this.value)" style="padding:8px;border-radius:8px">
+            <option value="">تغییر وضعیت</option>
+            <option value="OPEN">باز</option>
+            <option value="UNDER_REVIEW">در حال بررسی</option>
+            <option value="RESOLVED">حل شده</option>
+            <option value="DISMISSED">رد هشدار</option>
+          </select>
+        </td>
+      </tr>
+    `).join('');
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="6" class="empty">'+escapeHtml(e.message)+'</td></tr>';
+  }
+}
+
+async function changeFraudStatus(id,status){
+  if(!status) return;
+  try{
+    await adminApi('/api/admin/fraud-flags/'+id+'/status',{
+      method:'POST',
+      body:JSON.stringify({status})
+    });
+    showNotice('وضعیت هشدار امنیتی ثبت شد.');
+    await loadFraudFlags();
   }catch(e){
     showNotice(e.message,'error');
   }

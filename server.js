@@ -4111,12 +4111,7 @@ app.post(
         });
       }
 
-      if (
-        ![
-          'APPROVED',
-          'PROCESSING'
-        ].includes(withdrawal.status)
-      ) {
+      if (withdrawal.status !== 'PROCESSING') {
         await client.query('ROLLBACK');
 
         return res.status(400).json({

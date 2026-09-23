@@ -3849,6 +3849,7 @@ app.post(
             AND type = 'WITHDRAWAL'
             AND metadata->>'withdrawal_id' = $2
           LIMIT 1
+          FOR UPDATE
           `,
           [
             withdrawal.user_id,
@@ -3856,7 +3857,11 @@ app.post(
           ]
         );
 
-      if (txResult.rows.length) {
+      if (!txResult.rows.length) {
+        throw new Error('Withdrawal transaction missing');
+      }
+
+      {
         await client.query(
           `
           UPDATE transactions

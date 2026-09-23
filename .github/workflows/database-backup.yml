@@ -10,15 +10,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Install PostgreSQL client
-        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Install PostgreSQL 18 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSLo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(. /etc/os-release && echo $VERSION_CODENAME)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-18
+          /usr/lib/postgresql/18/bin/pg_dump --version
       - name: Create database dump
         env:
           DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
         run: |
           test -n "$DATABASE_URL"
-          pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges --file=kariyab.dump
-          pg_restore --list kariyab.dump >/dev/null
+          /usr/lib/postgresql/18/bin/pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges --file=kariyab.dump
+          /usr/lib/postgresql/18/bin/pg_restore --list kariyab.dump >/dev/null
       - name: Encrypt backup
         env:
           BACKUP_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}

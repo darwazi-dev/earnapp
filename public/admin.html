@@ -351,6 +351,19 @@ td{
 
     </div>
 
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
+        <h3 style="margin:0">احراز هویت کاربران</h3>
+        <button class="btn-primary" id="refreshIdentityBtn">بروزرسانی</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>کاربر</th><th>مدرک</th><th>تصویر مدرک</th><th>سلفی</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+          <tbody id="identityTable"></tbody>
+        </table>
+      </div>
+    </div>
+
         <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
         <h3 style="margin:0">هشدارهای امنیتی / Fraud Flags</h3>
@@ -651,6 +664,7 @@ async function loadDashboard(){
 
     loadSupportTickets();
     loadFraudFlags();
+    loadIdentityVerifications();
 
 
     document.getElementById(
@@ -1007,6 +1021,25 @@ document.getElementById('reconcileBtn')?.addEventListener('click', reconcileWall
 document.getElementById('refreshDashboardBtn')?.addEventListener('click', loadDashboard);
 document.getElementById('refreshFraudBtn')?.addEventListener('click', loadFraudFlags);
 document.getElementById('refreshSupportBtn')?.addEventListener('click', loadSupportTickets);
+document.getElementById('refreshIdentityBtn')?.addEventListener('click', loadIdentityVerifications);
+
+document.getElementById('identityTable')?.addEventListener('click', async (event)=>{
+  const imageButton=event.target.closest('.identity-image');
+  if(imageButton){
+    const src=imageButton.dataset.src || '';
+    const win=window.open('','_blank');
+    if(!win) return showNotice('مرورگر نمایش تصویر را مسدود کرد.','error');
+    win.document.write('<!doctype html><meta charset="utf-8"><title>Identity image</title><style>body{margin:0;background:#111;display:flex;min-height:100vh;align-items:center;justify-content:center}img{max-width:96vw;max-height:96vh;object-fit:contain}</style><img alt="Identity review">');
+    win.document.querySelector('img').src=src;
+    win.document.close();
+    return;
+  }
+  const button=event.target.closest('.identity-action');
+  if(!button) return;
+  const id=Number(button.dataset.id);
+  if(!Number.isFinite(id)) return;
+  return reviewIdentity(id,button.dataset.action==='verify'?'VERIFIED':'REJECTED');
+});
 
 document.getElementById('withdrawalTable')?.addEventListener('click', async (event)=>{
   const button=event.target.closest('.withdrawal-action');
@@ -1204,6 +1237,57 @@ async function showFinancialDiagnostics(userId){
   }
 }
 
+
+function identityAdminStatusLabel(status){
+  return ({UNDER_REVIEW:'در حال بررسی',VERIFIED:'تأیید شده',REJECTED:'رد شده',CANCELLED:'لغو شده'})[status] || status;
+}
+
+async function loadIdentityVerifications(){
+  const tbody=document.getElementById('identityTable');
+  if(!tbody) return;
+  try{
+    const data=await adminApi('/api/admin/identity-verifications');
+    const rows=Array.isArray(data.verifications)?data.verifications:[];
+    if(!rows.length){
+      tbody.innerHTML='<tr><td colspan="6" class="empty">درخواست احراز هویتی وجود ندارد</td></tr>';
+      return;
+    }
+    tbody.innerHTML=rows.map(v=>{
+      const actions=v.status==='UNDER_REVIEW'
+        ? '<div class="actions"><button class="btn-approve identity-action" data-action="verify" data-id="'+Number(v.id)+'">تأیید</button><button class="btn-reject identity-action" data-action="reject" data-id="'+Number(v.id)+'">رد</button></div>'
+        : '—';
+      return '<tr>'+
+        '<td>'+escapeHtml(v.user_name)+'</td>'+
+        '<td>'+escapeHtml(v.document_type)+'<div class="ref">••••'+escapeHtml(v.document_number_last4 || '')+'</div></td>'+
+        '<td><button class="btn-primary identity-image" data-src="'+escapeHtml(v.document_image)+'">مشاهده مدرک</button></td>'+
+        '<td><button class="btn-primary identity-image" data-src="'+escapeHtml(v.selfie_image)+'">مشاهده سلفی</button></td>'+
+        '<td><span class="pill '+statusClass(v.status)+'">'+escapeHtml(identityAdminStatusLabel(v.status))+'</span></td>'+
+        '<td>'+actions+'</td></tr>';
+    }).join('');
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="6" class="empty">'+escapeHtml(e.message)+'</td></tr>';
+  }
+}
+
+async function reviewIdentity(id,decision){
+  let reason='';
+  if(decision==='REJECTED'){
+    const entered=prompt('دلیل رد احراز هویت را وارد کنید:');
+    if(entered===null) return;
+    reason=entered.trim();
+    if(reason.length<3) return showNotice('دلیل رد را واضح بنویسید.','error');
+  }else if(!confirm('مدرک و سلفی را بررسی کرده‌اید و هویت این کاربر تأیید شود؟')){
+    return;
+  }
+  try{
+    await adminApi('/api/admin/identity-verifications/'+id+'/review',{
+      method:'POST',
+      body:JSON.stringify({decision,reason})
+    });
+    showNotice(decision==='VERIFIED'?'هویت کاربر تأیید شد.':'درخواست احراز هویت رد شد.');
+    await loadIdentityVerifications();
+  }catch(e){ showNotice(e.message,'error'); }
+}
 
 async function loadFraudFlags(){
   const tbody=document.getElementById('fraudTable');

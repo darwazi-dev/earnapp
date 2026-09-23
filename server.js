@@ -2318,7 +2318,8 @@ app.get(
             (
               SELECT COUNT(*)
               FROM withdrawals
-              WHERE status IN (
+              WHERE COALESCE(is_test, FALSE) = FALSE
+                AND status IN (
                 'REQUESTED',
                 'UNDER_REVIEW',
                 'APPROVED',
@@ -2332,7 +2333,8 @@ app.get(
                 0
               )
               FROM withdrawals
-              WHERE status IN (
+              WHERE COALESCE(is_test, FALSE) = FALSE
+                AND status IN (
                 'REQUESTED',
                 'UNDER_REVIEW',
                 'APPROVED',
@@ -2346,7 +2348,8 @@ app.get(
                 0
               )
               FROM withdrawals
-              WHERE status = 'PAID'
+              WHERE COALESCE(is_test, FALSE) = FALSE
+                AND status = 'PAID'
             ) AS paid_out
           `
         );
@@ -2916,6 +2919,8 @@ app.get(
             w.account_details,
             w.payment_reference,
             w.created_at,
+            COALESCE(w.is_test, FALSE) AS is_test,
+            COALESCE(w.environment, 'PRODUCTION') AS environment,
             u.name AS user_name,
             u.phone AS user_phone,
             wm.name AS method
@@ -2956,7 +2961,11 @@ app.get(
                 ? 'rejected'
                 : 'pending',
             paymentReference:
-              w.payment_reference
+              w.payment_reference,
+            isTest:
+              Boolean(w.is_test),
+            environment:
+              w.environment
           }))
       });
     } catch (error) {

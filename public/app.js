@@ -545,10 +545,6 @@ async function submitIdentityVerification() {
   }
 }
 
-document.getElementById('identity-open-btn')?.addEventListener('click', openIdentityVerification);
-document.getElementById('identity-submit-btn')?.addEventListener('click', submitIdentityVerification);
-document.getElementById('identity-close-btn')?.addEventListener('click', closeIdentityVerification);
-
 // ---------- Opportunities ----------
 async function loadTasks() {
   try {
@@ -1130,6 +1126,10 @@ function submitResetPassword() {
 
 // ---------- Init ----------
 document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('identity-open-btn')?.addEventListener('click', openIdentityVerification);
+  document.getElementById('identity-submit-btn')?.addEventListener('click', submitIdentityVerification);
+  document.getElementById('identity-close-btn')?.addEventListener('click', closeIdentityVerification);
+
   if (TOKEN) {
     enterApp();
   } else {

@@ -3564,6 +3564,7 @@ app.get(
 app.post(
   '/api/admin/withdrawals/:id/approve',
   adminRequired,
+  sensitiveLimiter,
   async (req, res) => {
     const client =
       await pool.connect();
@@ -3682,6 +3683,7 @@ app.post(
 app.post(
   '/api/admin/withdrawals/:id/reject',
   adminRequired,
+  sensitiveLimiter,
   async (req, res) => {
     const client =
       await pool.connect();
@@ -3893,6 +3895,7 @@ app.post(
 app.post(
   '/api/admin/withdrawals/:id/processing',
   adminRequired,
+  sensitiveLimiter,
   async (req, res) => {
     const client = await pool.connect();
 
@@ -3989,6 +3992,7 @@ app.post(
 app.post(
   '/api/admin/withdrawals/:id/paid',
   adminRequired,
+  sensitiveLimiter,
   async (req, res) => {
     const paymentReference =
       String(

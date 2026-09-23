@@ -3031,6 +3031,7 @@ app.get(
 app.post(
   '/api/admin/fraud-flags/:id/status',
   adminRequired,
+  sensitiveLimiter,
   async (req, res) => {
     const status = String(req.body.status || '').trim().toUpperCase();
     const allowed = new Set(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED']);
@@ -3197,6 +3198,7 @@ app.get(
 app.post(
   '/api/admin/wallet-reconciliation/:userId/baseline',
   adminRequired,
+  sensitiveLimiter,
   async (req, res) => {
     const userId = String(req.params.userId || '').trim();
     const client = await pool.connect();

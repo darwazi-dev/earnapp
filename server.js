@@ -1,4 +1,6 @@
 const express = require('express');
+const helmet = require('helmet');
+const { rateLimit } = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -6,6 +8,33 @@ const path = require('path');
 const { Pool } = require('pg');
 
 const app = express();
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false
+  })
+);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: {
+    error: 'درخواست‌های زیادی ارسال شده است. کمی بعد دوباره تلاش کنید.'
+  }
+});
+
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 15,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: {
+    error: 'درخواست‌های زیادی ارسال شده است. کمی بعد دوباره تلاش کنید.'
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 
 // =====================================================
@@ -501,7 +530,8 @@ app.get('/api/health', async (req, res) => {
 // REGISTER
 // =====================================================
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register',
+  authLimiter, async (req, res) => {
   const name =
     String(req.body.name || '').trim();
 
@@ -632,7 +662,8 @@ app.post('/api/register', async (req, res) => {
 // LOGIN
 // =====================================================
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login',
+  authLimiter, async (req, res) => {
   const phone =
     normalizePhone(req.body.phone);
 
@@ -731,6 +762,7 @@ app.post('/api/login', async (req, res) => {
 
 app.post(
   '/api/auth/password-recovery/request',
+  authLimiter,
   async (req, res) => {
     const phone = normalizePhone(req.body.phone);
 

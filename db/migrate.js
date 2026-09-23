@@ -111,7 +111,14 @@ async function migrate() {
         amount_minor BIGINT NOT NULL,
         currency VARCHAR(10) NOT NULL DEFAULT 'AFN',
         status VARCHAR(20) NOT NULL
-          CHECK (status IN ('PENDING','APPROVED','REJECTED','REVERSED')),
+          CHECK (
+            status IN (
+              'PENDING',
+              'APPROVED',
+              'REJECTED',
+              'REVERSED'
+            )
+          ),
         metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -140,7 +147,14 @@ async function migrate() {
         amount_minor BIGINT NOT NULL,
         currency VARCHAR(10) NOT NULL DEFAULT 'AFN',
         status VARCHAR(20) NOT NULL
-          CHECK (status IN ('PENDING','APPROVED','REJECTED','REVERSED')),
+          CHECK (
+            status IN (
+              'PENDING',
+              'APPROVED',
+              'REJECTED',
+              'REVERSED'
+            )
+          ),
         metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
@@ -252,16 +266,69 @@ async function migrate() {
 
       CREATE TABLE IF NOT EXISTS admin_actions (
         id BIGSERIAL PRIMARY KEY,
+
         admin_id BIGINT
           REFERENCES users(id) ON DELETE SET NULL,
-        action VARCHAR(100) NOT NULL,
-        target_type VARCHAR(100) NOT NULL,
+
+        action VARCHAR(100),
+        target_type VARCHAR(100),
         target_id VARCHAR(255),
         old_value JSONB,
         new_value JSONB,
         reason TEXT,
+
+        action_type VARCHAR(100),
+        entity_type VARCHAR(100),
+        entity_id VARCHAR(255),
+
+        details JSONB NOT NULL DEFAULT '{}'::jsonb,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+
+      /*
+       * Compatibility with databases created by
+       * older Kariyab migrations.
+       */
+
+      ALTER TABLE admin_actions
+        ADD COLUMN IF NOT EXISTS action_type VARCHAR(100);
+
+      ALTER TABLE admin_actions
+        ADD COLUMN IF NOT EXISTS entity_type VARCHAR(100);
+
+      ALTER TABLE admin_actions
+        ADD COLUMN IF NOT EXISTS entity_id VARCHAR(255);
+
+      ALTER TABLE admin_actions
+        ADD COLUMN IF NOT EXISTS details JSONB
+        NOT NULL DEFAULT '{}'::jsonb;
+
+      ALTER TABLE admin_actions
+        ADD COLUMN IF NOT EXISTS metadata JSONB
+        NOT NULL DEFAULT '{}'::jsonb;
+
+      ALTER TABLE admin_actions
+        ALTER COLUMN action DROP NOT NULL;
+
+      ALTER TABLE admin_actions
+        ALTER COLUMN target_type DROP NOT NULL;
+
+      ALTER TABLE admin_actions
+        ALTER COLUMN target_id DROP NOT NULL;
+
+      ALTER TABLE admin_actions
+        ALTER COLUMN old_value DROP NOT NULL;
+
+      ALTER TABLE admin_actions
+        ALTER COLUMN new_value DROP NOT NULL;
+
+      ALTER TABLE admin_actions
+        ALTER COLUMN reason DROP NOT NULL;
+
+      ALTER TABLE admin_actions
+        ALTER COLUMN admin_id DROP NOT NULL;
 
       CREATE TABLE IF NOT EXISTS system_settings (
         key VARCHAR(120) PRIMARY KEY,
@@ -276,8 +343,14 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_transactions_status
         ON transactions(status);
 
+      CREATE INDEX IF NOT EXISTS idx_transactions_provider_tx
+        ON transactions(provider_id, provider_transaction_id);
+
       CREATE INDEX IF NOT EXISTS idx_ledger_user_created
         ON wallet_ledger(user_id, created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_ledger_transaction
+        ON wallet_ledger(transaction_id);
 
       CREATE INDEX IF NOT EXISTS idx_withdrawals_user
         ON withdrawals(user_id);
@@ -287,6 +360,9 @@ async function migrate() {
 
       CREATE INDEX IF NOT EXISTS idx_offer_events_user
         ON offer_events(user_id);
+
+      CREATE INDEX IF NOT EXISTS idx_offer_events_provider_event
+        ON offer_events(provider_id, provider_event_id);
 
       CREATE INDEX IF NOT EXISTS idx_fraud_flags_user
         ON fraud_flags(user_id);
@@ -299,26 +375,62 @@ async function migrate() {
 
       CREATE INDEX IF NOT EXISTS idx_task_completions_date
         ON task_completions(completed_on);
+
+      CREATE INDEX IF NOT EXISTS idx_admin_actions_created
+        ON admin_actions(created_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_admin_actions_entity
+        ON admin_actions(entity_type, entity_id);
     `);
 
+    /*
+     * CPX has already passed Kariyab's postback test.
+     * Keep it enabled in new databases and existing ones.
+     */
     await client.query(`
-      INSERT INTO providers (code, name, enabled)
-      VALUES ('CPX', 'CPX Research', FALSE)
-      ON CONFLICT (code) DO NOTHING
+      INSERT INTO providers (
+        code,
+        name,
+        enabled
+      )
+      VALUES (
+        'CPX',
+        'CPX Research',
+        TRUE
+      )
+      ON CONFLICT (code)
+      DO UPDATE SET
+        name = EXCLUDED.name,
+        enabled = TRUE,
+        updated_at = NOW()
     `);
 
+    /*
+     * Withdrawal methods.
+     * Existing enabled/disabled state is preserved.
+     */
     await client.query(`
-      INSERT INTO withdrawal_methods (code, name, enabled)
+      INSERT INTO withdrawal_methods (
+        code,
+        name,
+        enabled
+      )
       VALUES
-        ('HesabPay', 'HesabPay', TRUE),
-        ('M-Paisa', 'M-Paisa (Roshan)', TRUE),
-        ('Hawala', 'حواله صرافی', TRUE)
-      ON CONFLICT (code) DO UPDATE
-      SET name = EXCLUDED.name
+        ('HesabPay', 'HesabPay', FALSE),
+        ('M-Paisa', 'M-Paisa (Roshan)', FALSE),
+        ('Hawala', 'حواله صرافی', FALSE)
+      ON CONFLICT (code)
+      DO UPDATE SET
+        name = EXCLUDED.name,
+        updated_at = NOW()
     `);
 
     await client.query(`
-      INSERT INTO system_settings (key, value, description)
+      INSERT INTO system_settings (
+        key,
+        value,
+        description
+      )
       VALUES
         (
           'currency',
@@ -328,12 +440,12 @@ async function migrate() {
         (
           'minimum_withdrawal_minor',
           '50000'::jsonb,
-          'Minimum withdrawal in AFN minor units; configurable'
+          'Minimum withdrawal in AFN minor units'
         ),
         (
           'user_revenue_share',
           '0.55'::jsonb,
-          'Current configurable user revenue share assumption'
+          'Configurable user revenue share'
         ),
         (
           'afn_per_usd',
@@ -345,15 +457,23 @@ async function migrate() {
           '72'::jsonb,
           'Pending earning hold period in hours'
         )
-      ON CONFLICT (key) DO NOTHING
+      ON CONFLICT (key)
+      DO NOTHING
     `);
 
     await client.query("COMMIT");
 
-    console.log("Kariyab database migration completed successfully.");
+    console.log(
+      "Kariyab database migration completed successfully."
+    );
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("Migration failed:", error);
+
+    console.error(
+      "Migration failed:",
+      error
+    );
+
     process.exitCode = 1;
   } finally {
     client.release();

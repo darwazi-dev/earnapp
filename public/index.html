@@ -59,9 +59,32 @@
     @media (max-width: 767px){
       .legal-footer{width:calc(100% - 28px);margin:14px auto 24px;padding:10px 8px;}
     }
+
+    .menu-toggle{position:fixed;top:16px;left:16px;z-index:1100;width:44px;height:44px;border:0;border-radius:12px;background:#075f3a;color:#fff;font-size:25px;line-height:1;cursor:pointer;box-shadow:0 5px 18px rgba(0,0,0,.12)}
+    .menu-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:1090;display:none}
+    .side-menu{position:fixed;top:0;left:0;width:min(82vw,320px);height:100vh;background:#fff;z-index:1101;transform:translateX(-105%);transition:transform .22s ease;box-shadow:6px 0 24px rgba(0,0,0,.14);padding:24px 18px;box-sizing:border-box;overflow:auto}
+    .side-menu.open{transform:translateX(0)} .menu-backdrop.open{display:block}
+    .side-menu h2{margin:8px 0 22px;color:#075f3a}.side-menu a,.side-menu button{display:block;width:100%;box-sizing:border-box;text-align:right;padding:12px 10px;margin:3px 0;border:0;border-bottom:1px solid #eee;background:transparent;color:#17352d;text-decoration:none;font:inherit;cursor:pointer}
+    .side-menu .menu-close{text-align:left;font-size:24px;border:0;padding:0 4px 8px}
+    @media(max-width:767px){.menu-toggle{top:14px;left:14px;width:42px;height:42px}.legal-footer{display:none}}
 </style>
 </head>
 <body>
+  <button class="menu-toggle" type="button" aria-label="باز کردن منو" aria-controls="kariyab-menu" aria-expanded="false" onclick="toggleKariyabMenu(true)">☰</button>
+  <div id="menu-backdrop" class="menu-backdrop" onclick="toggleKariyabMenu(false)"></div>
+  <nav id="kariyab-menu" class="side-menu" aria-label="منوی کاریاب">
+    <button class="menu-close" type="button" aria-label="بستن منو" onclick="toggleKariyabMenu(false)">×</button>
+    <h2>کاریاب</h2>
+    <a href="/">خانه</a>
+    <button type="button" onclick="toggleKariyabMenu(false);openSupport()">پشتیبانی</button>
+    <a href="/about.html">درباره کاریاب</a>
+    <a href="/earning-rules.html">قواعد درآمد</a>
+    <a href="/withdrawal-policy.html">سیاست برداشت</a>
+    <a href="/partner-disclosure.html">افشای همکاری</a>
+    <a href="/terms.html">شرایط استفاده</a>
+    <a href="/privacy.html">حریم خصوصی</a>
+    <a href="/contact.html">تماس و پشتیبانی</a>
+  </nav>
 
   <div class="container">
     <div id="toast" class="toast hidden"></div>
@@ -233,6 +256,18 @@
     <a href="/contact.html">تماس و پشتیبانی</a>
   </footer>
 
+  <script>
+    function toggleKariyabMenu(open){
+      const menu=document.getElementById('kariyab-menu');
+      const backdrop=document.getElementById('menu-backdrop');
+      const toggle=document.querySelector('.menu-toggle');
+      if(!menu||!backdrop) return;
+      menu.classList.toggle('open',open);
+      backdrop.classList.toggle('open',open);
+      if(toggle) toggle.setAttribute('aria-expanded',open?'true':'false');
+    }
+    document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleKariyabMenu(false)});
+  </script>
   <script src="app.js"></script>
 </body>
 </html>

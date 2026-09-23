@@ -2576,41 +2576,10 @@ app.get(
           ), 0)::bigint AS expected_pending_minor,
 
           COALESCE((
-            SELECT SUM(t.amount_minor)
-            FROM transactions t
-            WHERE t.user_id = u.id
-              AND t.type = 'EARNING'
-              AND t.status = 'APPROVED'
-          ), 0)::bigint AS approved_earnings_minor,
-
-          COALESCE((
-            SELECT SUM(t.amount_minor)
-            FROM transactions t
-            WHERE t.user_id = u.id
-              AND t.type = 'EARNING'
-              AND t.status = 'REVERSED'
-              AND EXISTS (
-                SELECT 1
-                FROM wallet_ledger wl
-                WHERE wl.transaction_id = t.id
-                  AND wl.entry_type = 'EARNING_APPROVED'
-              )
-          ), 0)::bigint AS reversed_after_approval_minor,
-
-          COALESCE((
-            SELECT SUM(wd.amount_minor)
-            FROM withdrawals wd
-            WHERE wd.user_id = u.id
-              AND wd.status IN (
-                'REQUESTED','UNDER_REVIEW','APPROVED','PROCESSING','PAID'
-              )
-          ), 0)::bigint AS reserved_or_paid_withdrawals_minor,
-
-          COALESCE((
             SELECT SUM(
               CASE
-                WHEN wl.entry_type = 'EARNING_APPROVED'
-                  THEN COALESCE(
+                WHEN wl.entry_type = 'EARNING_APPROVED' THEN
+                  COALESCE(
                     NULLIF(wl.amount_minor, 0),
                     (
                       SELECT ABS(t2.amount_minor)
@@ -2620,18 +2589,17 @@ app.get(
                     ),
                     0
                   )
-                WHEN wl.entry_type = 'REVERSAL'
-                  THEN wl.amount_minor
-                WHEN wl.entry_type = 'WITHDRAWAL_RESERVED'
-                  THEN wl.amount_minor
-                WHEN wl.entry_type = 'WITHDRAWAL_REFUND'
-                  THEN wl.amount_minor
+                WHEN wl.entry_type IN (
+                  'REVERSAL',
+                  'WITHDRAWAL_RESERVED',
+                  'WITHDRAWAL_REFUND'
+                ) THEN wl.amount_minor
                 ELSE 0
               END
             )
             FROM wallet_ledger wl
             WHERE wl.user_id = u.id
-          ), 0)::bigint AS ledger_available_minor
+          ), 0)::bigint AS expected_available_minor
 
         FROM users u
         LEFT JOIN wallets w ON w.user_id = u.id
@@ -2643,25 +2611,8 @@ app.get(
       const users = result.rows.map(row => {
         const available = Number(row.available_minor);
         const pending = Number(row.pending_minor);
+        const expectedAvailable = Number(row.expected_available_minor);
         const expectedPending = Number(row.expected_pending_minor);
-        const approved = Number(row.approved_earnings_minor);
-        const reversedAfterApproval = Number(row.reversed_after_approval_minor);
-        const withdrawals = Number(row.reserved_or_paid_withdrawals_minor);
-
-        // Approved earnings remain the source of available balance.
-        // A provider reversal that happened after approval must also be
-        // subtracted because the original earning transaction becomes
-        // REVERSED and is no longer counted in approved_earnings_minor.
-        // approved excludes transactions whose current status is REVERSED.
-        // Therefore an earning reversed after approval is already absent from
-        // approved and must NOT be subtracted a second time.
-        // Reconstruct the wallet from the same immutable ledger events
-        // that actually mutate balances. Legacy EARNING_APPROVED rows store
-        // zero amount, so the source transaction amount is resolved by ID.
-        // Historical test data predates the canonical ledger rules.
-        // For reconciliation, the wallet is authoritative for legacy rows;
-        // all new production mutations are guarded by transactional ledger writes.
-        const expectedAvailable = Number(row.available_minor);
 
         return {
           userId: row.user_id,

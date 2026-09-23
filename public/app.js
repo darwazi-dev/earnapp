@@ -287,6 +287,7 @@ async function saveAccountSettings() {
     USER_NAME = data.name;
     localStorage.setItem('userName', USER_NAME);
     await loadProfile();
+  await loadNotifications();
     toast('تنظیمات حساب ذخیره شد');
   } catch (error) {
     toast(error.message);
@@ -539,6 +540,64 @@ function renderPendingInfo(data) {
   } else {
     pendingSub.textContent =
       `حداقل برداشت: ${minWithdraw} افغانی`;
+  }
+}
+
+// ---------- Notifications ----------
+async function loadNotifications() {
+  if (!TOKEN) return;
+  try {
+    const data = await api('/api/notifications');
+    const badge = el('notification-badge');
+    const unread = Number(data.unread || 0);
+    if (badge) {
+      badge.textContent = unread > 99 ? '99+' : String(unread);
+      badge.classList.toggle('hidden', unread < 1);
+    }
+    const list = el('notifications-list');
+    if (!list) return;
+    const items = Array.isArray(data.notifications) ? data.notifications : [];
+    if (!items.length) {
+      list.innerHTML = '<div class="activity-empty">هنوز اعلانی ندارید</div>';
+      return;
+    }
+    list.innerHTML = items.map(item =>
+      '<div class="notification-item ' + (item.read ? '' : 'unread') +
+      '" onclick="markNotificationRead(' + Number(item.id) + ')">' +
+      '<div>' + escapeHtml(item.title) + '</div>' +
+      '<small>' + escapeHtml(item.body) + '</small>' +
+      '<small>' + escapeHtml(new Date(item.createdAt).toLocaleString('fa-AF')) + '</small>' +
+      '</div>'
+    ).join('');
+  } catch (error) {
+    console.error('Notifications:', error);
+  }
+}
+
+async function openNotifications() {
+  el('notifications-sheet')?.classList.remove('hidden');
+  await loadNotifications();
+}
+
+function closeNotifications() {
+  el('notifications-sheet')?.classList.add('hidden');
+}
+
+async function markNotificationRead(id) {
+  try {
+    await api('/api/notifications/' + encodeURIComponent(id) + '/read', { method: 'POST' });
+    await loadNotifications();
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+async function markAllNotificationsRead() {
+  try {
+    await api('/api/notifications/read-all', { method: 'POST' });
+    await loadNotifications();
+  } catch (error) {
+    toast(error.message);
   }
 }
 

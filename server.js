@@ -2592,7 +2592,8 @@ app.get(
                 WHEN wl.entry_type IN (
                   'REVERSAL',
                   'WITHDRAWAL_RESERVED',
-                  'WITHDRAWAL_REFUND'
+                  'WITHDRAWAL_REFUND',
+                  'LEGACY_RECONCILIATION_BASELINE'
                 ) THEN wl.amount_minor
                 ELSE 0
               END
@@ -2644,6 +2645,148 @@ app.get(
       res.status(500).json({
         error: 'بررسی تطبیق کیف پول انجام نشد'
       });
+    }
+  }
+);
+
+// =====================================================
+// ADMIN LEGACY WALLET BASELINE
+// =====================================================
+
+app.post(
+  '/api/admin/wallet-reconciliation/:userId/baseline',
+  adminRequired,
+  async (req, res) => {
+    const userId = String(req.params.userId || '').trim();
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const walletResult = await client.query(
+        `SELECT available_balance_minor
+         FROM wallets
+         WHERE user_id = $1
+         FOR UPDATE`,
+        [userId]
+      );
+
+      if (!walletResult.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'کیف پول یافت نشد' });
+      }
+
+      const ledgerResult = await client.query(
+        `
+        SELECT COALESCE(SUM(
+          CASE
+            WHEN wl.entry_type = 'EARNING_APPROVED' THEN
+              COALESCE(
+                NULLIF(wl.amount_minor, 0),
+                (
+                  SELECT ABS(t.amount_minor)
+                  FROM transactions t
+                  WHERE t.id = wl.transaction_id
+                  LIMIT 1
+                ),
+                0
+              )
+            WHEN wl.entry_type IN (
+              'REVERSAL',
+              'WITHDRAWAL_RESERVED',
+              'WITHDRAWAL_REFUND',
+              'LEGACY_RECONCILIATION_BASELINE'
+            ) THEN wl.amount_minor
+            ELSE 0
+          END
+        ), 0)::bigint AS expected_available_minor
+        FROM wallet_ledger wl
+        WHERE wl.user_id = $1
+        `,
+        [userId]
+      );
+
+      const current = Number(walletResult.rows[0].available_balance_minor);
+      const expected = Number(ledgerResult.rows[0].expected_available_minor);
+      const adjustment = current - expected;
+
+      if (!Number.isSafeInteger(adjustment)) {
+        throw new Error('Invalid reconciliation adjustment');
+      }
+
+      if (adjustment === 0) {
+        await client.query('COMMIT');
+        return res.json({ ok: true, adjusted: false });
+      }
+
+      const existing = await client.query(
+        `SELECT id FROM wallet_ledger
+         WHERE user_id = $1
+           AND entry_type = 'LEGACY_RECONCILIATION_BASELINE'
+         LIMIT 1`,
+        [userId]
+      );
+
+      if (existing.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Baseline قبلاً برای این کاربر ثبت شده است'
+        });
+      }
+
+      await client.query(
+        `
+        INSERT INTO wallet_ledger (
+          user_id, transaction_id, entry_type, amount_minor,
+          currency, status, metadata
+        )
+        VALUES (
+          $1, NULL, 'LEGACY_RECONCILIATION_BASELINE', $2,
+          'AFN', 'APPROVED', $3::jsonb
+        )
+        `,
+        [
+          userId,
+          adjustment,
+          JSON.stringify({
+            reason: 'One-time baseline for pre-canonical test ledger history',
+            wallet_available_minor: current,
+            reconstructed_available_minor: expected
+          })
+        ]
+      );
+
+      await client.query(
+        `
+        INSERT INTO admin_actions (
+          action_type, entity_type, entity_id, metadata
+        )
+        VALUES (
+          'LEGACY_WALLET_BASELINE_CREATED', 'WALLET', $1, $2::jsonb
+        )
+        `,
+        [
+          userId,
+          JSON.stringify({
+            adjustment_minor: adjustment,
+            wallet_available_minor: current,
+            reconstructed_available_minor: expected
+          })
+        ]
+      );
+
+      await client.query('COMMIT');
+      res.json({
+        ok: true,
+        adjusted: true,
+        adjustment: minorToAfn(adjustment)
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Legacy wallet baseline failed:', error);
+      res.status(500).json({ error: 'ثبت baseline مالی انجام نشد' });
+    } finally {
+      client.release();
     }
   }
 );

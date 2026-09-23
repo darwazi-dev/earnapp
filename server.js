@@ -2037,6 +2037,7 @@ app.get(
           u.phone,
           COALESCE(w.available_balance_minor, 0)::bigint AS available_minor,
           COALESCE(w.pending_balance_minor, 0)::bigint AS pending_minor,
+
           COALESCE((
             SELECT SUM(t.amount_minor)
             FROM transactions t
@@ -2044,6 +2045,7 @@ app.get(
               AND t.type = 'EARNING'
               AND t.status = 'PENDING'
           ), 0)::bigint AS expected_pending_minor,
+
           COALESCE((
             SELECT SUM(t.amount_minor)
             FROM transactions t
@@ -2051,6 +2053,21 @@ app.get(
               AND t.type = 'EARNING'
               AND t.status = 'APPROVED'
           ), 0)::bigint AS approved_earnings_minor,
+
+          COALESCE((
+            SELECT SUM(t.amount_minor)
+            FROM transactions t
+            WHERE t.user_id = u.id
+              AND t.type = 'EARNING'
+              AND t.status = 'REVERSED'
+              AND EXISTS (
+                SELECT 1
+                FROM wallet_ledger wl
+                WHERE wl.transaction_id = t.id
+                  AND wl.entry_type = 'EARNING_APPROVED'
+              )
+          ), 0)::bigint AS reversed_after_approval_minor,
+
           COALESCE((
             SELECT SUM(wd.amount_minor)
             FROM withdrawals wd
@@ -2059,6 +2076,7 @@ app.get(
                 'REQUESTED','UNDER_REVIEW','APPROVED','PROCESSING','PAID'
               )
           ), 0)::bigint AS reserved_or_paid_withdrawals_minor
+
         FROM users u
         LEFT JOIN wallets w ON w.user_id = u.id
         ORDER BY u.id
@@ -2071,8 +2089,15 @@ app.get(
         const pending = Number(row.pending_minor);
         const expectedPending = Number(row.expected_pending_minor);
         const approved = Number(row.approved_earnings_minor);
+        const reversedAfterApproval = Number(row.reversed_after_approval_minor);
         const withdrawals = Number(row.reserved_or_paid_withdrawals_minor);
-        const expectedAvailable = approved - withdrawals;
+
+        // Approved earnings remain the source of available balance.
+        // A provider reversal that happened after approval must also be
+        // subtracted because the original earning transaction becomes
+        // REVERSED and is no longer counted in approved_earnings_minor.
+        const expectedAvailable =
+          approved - reversedAfterApproval - withdrawals;
 
         return {
           userId: row.user_id,

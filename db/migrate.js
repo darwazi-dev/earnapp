@@ -62,6 +62,34 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS idx_otp_phone_purpose_created
         ON otp_verifications(phone, purpose, created_at DESC);
 
+      CREATE TABLE IF NOT EXISTS identity_verifications (
+        id BIGSERIAL PRIMARY KEY,
+        verification_id VARCHAR(100) NOT NULL UNIQUE,
+        user_id BIGINT NOT NULL
+          REFERENCES users(id) ON DELETE RESTRICT,
+        document_type VARCHAR(40) NOT NULL
+          CHECK (document_type IN ('NATIONAL_ID','PASSPORT','OTHER')),
+        document_number_last4 VARCHAR(4),
+        document_image TEXT NOT NULL,
+        selfie_image TEXT NOT NULL,
+        status VARCHAR(30) NOT NULL DEFAULT 'UNDER_REVIEW'
+          CHECK (status IN ('UNDER_REVIEW','VERIFIED','REJECTED','CANCELLED')),
+        rejection_reason TEXT,
+        submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        reviewed_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_identity_one_active_request
+        ON identity_verifications(user_id)
+        WHERE status = 'UNDER_REVIEW';
+
+      CREATE INDEX IF NOT EXISTS idx_identity_user_created
+        ON identity_verifications(user_id, submitted_at DESC);
+
+      CREATE INDEX IF NOT EXISTS idx_identity_status
+        ON identity_verifications(status, submitted_at ASC);
+
       CREATE TABLE IF NOT EXISTS devices (
         id BIGSERIAL PRIMARY KEY,
         user_id BIGINT NOT NULL

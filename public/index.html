@@ -70,6 +70,14 @@
     /* Kariyab mobile app shell */
     .profile-avatar{display:none}
     .mobile-bottom-nav{display:none}
+    .wallet-summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:-8px 0 20px}
+    .wallet-summary-item{background:#fff;border:1px solid #ececec;border-radius:12px;padding:11px 6px;text-align:center}
+    .wallet-summary-item strong{display:block;font-size:15px;color:var(--accent);margin-top:4px}
+    .wallet-summary-item span{font-size:10px;color:#777}
+    .recent-activity{margin:16px 0 8px}
+    .activity-item{display:flex;justify-content:space-between;gap:12px;padding:11px 2px;border-bottom:1px solid #eee;font-size:12px}
+    .activity-item .activity-meta{color:#777}
+    .activity-empty{padding:14px;text-align:center;color:#777;font-size:12px;border:1px dashed #ddd;border-radius:10px}
     @media(max-width:767px){
       body{padding:0 0 86px;background:#f6f6f6;display:block}
       .container{margin:0 auto;padding:72px 16px 20px;border-radius:0;box-shadow:none;min-height:100vh;background:#fff}
@@ -77,7 +85,7 @@
       .profile-avatar{display:flex;position:fixed;top:18px;right:18px;z-index:1080;width:46px;height:46px;min-width:46px;min-height:46px;padding:0;margin:0;border-radius:50%;background:#fdecec;color:#D71212;align-items:center;justify-content:center;font-weight:700;border:1px solid #f3caca;line-height:1;overflow:hidden;cursor:pointer}
       .profile-avatar img{width:100%;height:100%;object-fit:cover;display:block}
       .user-card{margin-top:4px;border-radius:18px;padding:22px 20px}
-      .mobile-bottom-nav{position:fixed;display:grid;grid-template-columns:repeat(4,1fr);left:12px;right:12px;bottom:max(10px,env(safe-area-inset-bottom));z-index:1050;background:#fff;border:1px solid #e8ecea;border-radius:22px;box-shadow:0 8px 28px rgba(0,0,0,.13);padding:7px 5px}
+      .mobile-bottom-nav{position:fixed;display:grid;grid-template-columns:repeat(5,1fr);left:12px;right:12px;bottom:max(10px,env(safe-area-inset-bottom));z-index:1050;background:#fff;border:1px solid #e8ecea;border-radius:22px;box-shadow:0 8px 28px rgba(0,0,0,.13);padding:7px 5px}
       .mobile-bottom-nav button{margin:0;padding:7px 2px;background:transparent;color:#333333;border-radius:14px;font-size:11px;font-weight:600;line-height:1.25}
       .mobile-bottom-nav button .nav-icon{display:block;font-size:20px;margin-bottom:3px}
       .mobile-bottom-nav button.active{background:#fdecec;color:#D71212}
@@ -150,16 +158,27 @@
           <span id="user-name">کاربر</span>
           <span onclick="logout()" style="cursor:pointer; text-decoration:underline; opacity:0.9;">خروج</span>
         </div>
-        <div class="balance-title">موجودى شما</div>
+        <div class="balance-title">موجودی قابل برداشت</div>
         <div class="balance-amount">؋ <span id="balance">0</span></div>
-        <div style="font-size:11px; opacity:0.8;">حداقل برداشت: ۵۰۰ افغانی</div>
+        <div id="pending-sub" style="font-size:11px; opacity:0.8;">در حال دریافت اطلاعات کیف پول...</div>
       </div>
 
-      <h3 style="text-align:right; font-size:15px; margin-bottom:10px;">تسک‌های امروز</h3>
+      <div class="wallet-summary-grid" aria-label="خلاصه کیف پول">
+        <div class="wallet-summary-item"><span>قابل برداشت</span><strong>؋ <span id="home-available">0</span></strong></div>
+        <div class="wallet-summary-item"><span>در انتظار تأیید</span><strong>؋ <span id="home-pending">0</span></strong></div>
+        <div class="wallet-summary-item"><span>کل درآمد</span><strong>؋ <span id="home-lifetime">0</span></strong></div>
+      </div>
+
+      <h3 style="text-align:right; font-size:15px; margin-bottom:10px;">فرصت‌های درآمد</h3>
       <div id="tasks-list"></div>
 
       <button onclick="openWithdraw()" style="margin-top:20px; background:#111111;">برداشت پول ؋</button>
       <button onclick="openSupport()" style="margin-top:10px; background:#D71212;">پشتیبانی</button>
+
+      <section class="recent-activity">
+        <h3 style="text-align:right;font-size:15px;margin:18px 0 8px;">فعالیت اخیر</h3>
+        <div id="recent-activity-list"><div class="activity-empty">در حال دریافت...</div></div>
+      </section>
     </div>
   </div>
 

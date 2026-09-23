@@ -2,6 +2,7 @@ const API = '';
 
 let TOKEN = localStorage.getItem('token') || null;
 let USER_NAME = localStorage.getItem('userName') || '';
+let PROFILE_DATA = null;
 
 function el(id) {
   return document.getElementById(id);
@@ -230,9 +231,65 @@ function renderProfilePhoto(photo) {
 async function loadProfile() {
   try {
     const data = await api('/api/profile');
+    PROFILE_DATA = data;
+    USER_NAME = data.name || USER_NAME;
+    localStorage.setItem('userName', USER_NAME);
+    const userName = el('user-name');
+    if (userName) userName.textContent = USER_NAME;
     renderProfilePhoto(data.profile_photo || '');
+    renderAccount(data);
   } catch (error) {
     console.error('Profile:', error);
+  }
+}
+
+function renderAccount(data) {
+  if (!data) return;
+  const name = el('account-name');
+  const phone = el('account-phone');
+  const language = el('account-language');
+  const notifications = el('account-notifications');
+  const status = el('account-phone-status');
+  const photo = el('account-photo');
+  if (name) name.value = data.name || '';
+  if (phone) phone.textContent = data.phone || '';
+  if (language) language.value = data.language || 'fa-AF';
+  if (notifications) notifications.checked = data.notifications_enabled !== false;
+  if (status) status.textContent = data.phone_verified ? 'تأیید شده' : 'هنوز تأیید نشده';
+  if (photo) {
+    photo.innerHTML = data.profile_photo
+      ? '<img src="' + data.profile_photo + '" alt="عکس پروفایل">'
+      : escapeHtml((data.name || 'ک').trim().charAt(0) || 'ک');
+  }
+}
+
+async function openAccount() {
+  const sheet = el('account-sheet');
+  if (sheet) sheet.classList.remove('hidden');
+  if (!PROFILE_DATA) await loadProfile();
+  else renderAccount(PROFILE_DATA);
+}
+
+function closeAccount() {
+  el('account-sheet')?.classList.add('hidden');
+}
+
+async function saveAccountSettings() {
+  const name = el('account-name')?.value.trim() || '';
+  const language = el('account-language')?.value || 'fa-AF';
+  const notificationsEnabled = Boolean(el('account-notifications')?.checked);
+  if (name.length < 2) return toast('نام معتبر وارد کنید');
+  try {
+    const data = await api('/api/profile/settings', {
+      method: 'POST',
+      body: JSON.stringify({ name, language, notificationsEnabled })
+    });
+    USER_NAME = data.name;
+    localStorage.setItem('userName', USER_NAME);
+    await loadProfile();
+    toast('تنظیمات حساب ذخیره شد');
+  } catch (error) {
+    toast(error.message);
   }
 }
 
@@ -264,6 +321,10 @@ async function uploadProfilePhoto(file) {
       body: JSON.stringify({ photo })
     });
     renderProfilePhoto(data.photo);
+    if (PROFILE_DATA) {
+      PROFILE_DATA.profile_photo = data.photo;
+      renderAccount(PROFILE_DATA);
+    }
     toast('عکس پروفایل ذخیره شد');
   } catch (error) {
     toast(error.message || 'آپلود عکس انجام نشد');

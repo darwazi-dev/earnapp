@@ -1962,6 +1962,7 @@ app.post(
         UPDATE withdrawals
         SET
           status = 'APPROVED',
+          reviewed_at = NOW(),
           updated_at = NOW()
         WHERE id = $1
         `,
@@ -2076,6 +2077,7 @@ app.post(
               NULLIF($2, ''),
               'Rejected by admin'
             ),
+          reviewed_at = COALESCE(reviewed_at, NOW()),
           updated_at = NOW()
         WHERE id = $1
         `,
@@ -2221,37 +2223,75 @@ app.post(
   '/api/admin/withdrawals/:id/processing',
   adminRequired,
   async (req, res) => {
+    const client = await pool.connect();
+
     try {
-      const result =
-        await pool.query(
-          `
-          UPDATE withdrawals
-          SET
-            status = 'PROCESSING',
-            updated_at = NOW()
-          WHERE
-            id = $1
-            AND status = 'APPROVED'
-          RETURNING id
-          `,
-          [req.params.id]
-        );
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `
+        UPDATE withdrawals
+        SET
+          status = 'PROCESSING',
+          updated_at = NOW()
+        WHERE
+          id = $1
+          AND status = 'APPROVED'
+        RETURNING id, withdrawal_id
+        `,
+        [req.params.id]
+      );
 
       if (!result.rows.length) {
+        await client.query('ROLLBACK');
+
         return res.status(400).json({
           error:
             'درخواست قابل انتقال به پردازش نیست'
         });
       }
 
+      const withdrawal = result.rows[0];
+
+      await client.query(
+        `
+        INSERT INTO admin_actions (
+          action_type,
+          entity_type,
+          entity_id,
+          metadata
+        )
+        VALUES (
+          'WITHDRAWAL_PROCESSING',
+          'WITHDRAWAL',
+          $1,
+          $2::jsonb
+        )
+        `,
+        [
+          String(withdrawal.id),
+          JSON.stringify({
+            withdrawal_id: withdrawal.withdrawal_id
+          })
+        ]
+      );
+
+      await client.query('COMMIT');
       res.json({ ok: true });
     } catch (error) {
-      console.error(error);
+      await client.query('ROLLBACK');
+
+      console.error(
+        'Processing withdrawal failed:',
+        error
+      );
 
       res.status(500).json({
         error:
           'تغییر وضعیت انجام نشد'
       });
+    } finally {
+      client.release();
     }
   }
 );
@@ -2326,6 +2366,8 @@ app.post(
         SET
           status = 'PAID',
           payment_reference = $2,
+          reviewed_at = COALESCE(reviewed_at, NOW()),
+          paid_at = NOW(),
           updated_at = NOW()
         WHERE id = $1
         `,

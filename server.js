@@ -312,8 +312,16 @@ function authRequired(req, res, next) {
   try {
     const decoded = jwt.verify(
       token,
-      JWT_SECRET
+      JWT_SECRET,
+      {
+        issuer: 'kariyab',
+        audience: 'kariyab-user'
+      }
     );
+
+    if (decoded.type !== 'USER_SESSION' || !decoded.userId) {
+      throw new Error('Invalid user session');
+    }
 
     req.userId = String(decoded.userId);
 
@@ -1081,11 +1089,14 @@ app.post('/api/register',
 
     const token = jwt.sign(
       {
-        userId: String(user.id)
+        userId: String(user.id),
+        type: 'USER_SESSION'
       },
       JWT_SECRET,
       {
-        expiresIn: '30d'
+        expiresIn: '30d',
+        issuer: 'kariyab',
+        audience: 'kariyab-user'
       }
     );
 
@@ -1187,11 +1198,14 @@ app.post('/api/login',
 
     const token = jwt.sign(
       {
-        userId: String(user.id)
+        userId: String(user.id),
+        type: 'USER_SESSION'
       },
       JWT_SECRET,
       {
-        expiresIn: '30d'
+        expiresIn: '30d',
+        issuer: 'kariyab',
+        audience: 'kariyab-user'
       }
     );
 

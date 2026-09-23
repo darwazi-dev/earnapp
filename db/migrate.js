@@ -203,6 +203,19 @@ async function migrate() {
       ALTER TABLE withdrawals
         ADD COLUMN IF NOT EXISTS account_details TEXT;
 
+      ALTER TABLE withdrawals
+        ADD COLUMN IF NOT EXISTS environment VARCHAR(20) NOT NULL DEFAULT 'PRODUCTION';
+
+      ALTER TABLE withdrawals
+        ADD COLUMN IF NOT EXISTS is_test BOOLEAN NOT NULL DEFAULT FALSE;
+
+      UPDATE withdrawals
+      SET
+        is_test = TRUE,
+        environment = 'TEST'
+      WHERE payment_reference LIKE 'TEST-%'
+         OR withdrawal_id LIKE 'TEST-%';
+
       CREATE TABLE IF NOT EXISTS task_completions (
         id BIGSERIAL PRIMARY KEY,
         user_id BIGINT NOT NULL

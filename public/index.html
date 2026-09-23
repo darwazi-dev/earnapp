@@ -78,6 +78,10 @@
     .activity-item{display:flex;justify-content:space-between;gap:12px;padding:11px 2px;border-bottom:1px solid #eee;font-size:12px}
     .activity-item .activity-meta{color:#777}
     .activity-empty{padding:14px;text-align:center;color:#777;font-size:12px;border:1px dashed #ddd;border-radius:10px}
+    .account-sheet{position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.38);display:flex;align-items:flex-end;justify-content:center}
+    .account-sheet.hidden{display:none}.account-panel{width:min(100%,500px);max-height:88vh;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:22px 18px 28px;box-sizing:border-box}
+    .account-head{display:flex;align-items:center;gap:12px;margin-bottom:18px}.account-photo{width:58px;height:58px;border-radius:50%;background:#fdecec;color:#D71212;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;overflow:hidden}.account-photo img{width:100%;height:100%;object-fit:cover}
+    .account-row{padding:12px 0;border-bottom:1px solid #eee;font-size:13px}.account-row small{display:block;color:#777;margin-bottom:4px}.account-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
     @media(max-width:767px){
       body{padding:0 0 86px;background:#f6f6f6;display:block}
       .container{margin:0 auto;padding:72px 16px 20px;border-radius:0;box-shadow:none;min-height:100vh;background:#fff}
@@ -93,7 +97,7 @@
 </style>
 </head>
 <body>
-  <button id="profile-avatar" class="profile-avatar" type="button" aria-label="تغییر عکس پروفایل" onclick="chooseProfilePhoto()">ک</button>
+  <button id="profile-avatar" class="profile-avatar" type="button" aria-label="تغییر عکس پروفایل" onclick="openAccount()">ک</button>
   <input id="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="uploadProfilePhoto(this.files?.[0])">
   <button class="menu-toggle" type="button" aria-label="باز کردن منو" aria-controls="kariyab-menu" aria-expanded="false" onclick="toggleKariyabMenu(true)">☰</button>
   <div id="menu-backdrop" class="menu-backdrop" onclick="toggleKariyabMenu(false)"></div>
@@ -182,6 +186,26 @@
     </div>
   </div>
 
+  <div id="account-sheet" class="account-sheet hidden" onclick="if(event.target===this)closeAccount()">
+    <div class="account-panel" role="dialog" aria-modal="true" aria-labelledby="account-title">
+      <div class="account-head">
+        <div id="account-photo" class="account-photo">ک</div>
+        <div style="flex:1"><h3 id="account-title" style="margin:0 0 4px">حساب من</h3><div id="account-phone" class="hint"></div></div>
+        <button type="button" onclick="closeAccount()" style="width:auto;background:#f2f2f2;color:#111;padding:8px 12px">×</button>
+      </div>
+      <div class="input-group"><label>نام و تخلص</label><input id="account-name" type="text" maxlength="120"></div>
+      <div class="input-group"><label>زبان</label><select id="account-language"><option value="fa-AF">دری / فارسی</option><option value="ps-AF">پښتو</option><option value="en">English</option></select></div>
+      <label class="account-row" style="display:flex;justify-content:space-between;align-items:center"><span>اعلان‌ها</span><input id="account-notifications" type="checkbox" style="width:auto"></label>
+      <div class="account-row"><small>وضعیت شماره تلفن</small><strong id="account-phone-status">—</strong></div>
+      <div class="account-row"><small>امنیت حساب</small><span>تغییر/بازیابی رمز پس از اتصال OTP واقعی فعال می‌شود.</span></div>
+      <div class="account-actions">
+        <button type="button" onclick="saveAccountSettings()">ذخیره تنظیمات</button>
+        <button type="button" onclick="chooseProfilePhoto()" style="background:#111">تغییر عکس</button>
+      </div>
+      <button type="button" onclick="logout()" style="margin-top:10px;background:#f5f5f5;color:#D71212">خروج از حساب</button>
+    </div>
+  </div>
+
   <!-- بازیابی رمز فقط پس از اتصال سرویس واقعی OTP فعال می‌شود؛ رابط جعلی حذف شده است. -->
 
   <!-- مودال پشتیبانی -->
@@ -245,7 +269,7 @@
     <button type="button" onclick="document.getElementById('tasks-list')?.scrollIntoView({behavior:'smooth'})"><span class="nav-icon">▣</span>فرصت‌ها</button>
     <button type="button" onclick="openWithdraw()"><span class="nav-icon">؋</span>برداشت</button>
     <button type="button" onclick="openSupport()"><span class="nav-icon">◉</span>پشتیبانی</button>
-    <button type="button" onclick="chooseProfilePhoto()"><span class="nav-icon">●</span>حساب من</button>
+    <button type="button" onclick="openAccount()"><span class="nav-icon">●</span>حساب من</button>
   </nav>
 
   <footer class="legal-footer">

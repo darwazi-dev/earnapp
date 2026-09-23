@@ -2705,6 +2705,76 @@ app.get(
 );
 
 // =====================================================
+// ADMIN ACCOUNT RECOVERY (temporary until real OTP is enabled)
+// =====================================================
+
+app.post(
+  '/api/admin/users/recover-password',
+  adminRequired,
+  sensitiveLimiter,
+  async (req, res) => {
+    const phone = normalizePhone(req.body.phone);
+    const newPassword = String(req.body.newPassword || '');
+
+    if (!phone || phone.length < 7) {
+      return res.status(400).json({ error: 'شماره موبایل معتبر وارد کنید' });
+    }
+
+    if (newPassword.length < 12) {
+      return res.status(400).json({ error: 'رمز جدید باید حداقل ۱۲ کاراکتر باشد' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const userResult = await client.query(
+        'SELECT id, status FROM users WHERE phone = $1 LIMIT 1 FOR UPDATE',
+        [phone]
+      );
+      const user = userResult.rows[0];
+      if (!user) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'حساب یافت نشد' });
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      await client.query(
+        'UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1',
+        [user.id, passwordHash]
+      );
+
+      await client.query(
+        `INSERT INTO admin_actions (action_type, entity_type, entity_id, metadata)
+         VALUES ('USER_PASSWORD_RECOVERY', 'USER', $1, $2::jsonb)`,
+        [
+          String(user.id),
+          JSON.stringify({
+            method: 'TEMPORARY_ADMIN_RECOVERY',
+            reason: 'OTP_PROVIDER_NOT_ENABLED'
+          })
+        ]
+      );
+
+      await client.query(
+        `INSERT INTO notifications (user_id, title, body)
+         VALUES ($1, 'رمز عبور بازیابی شد', 'رمز عبور حساب توسط روند بازیابی مدیریتی تغییر کرد. اگر این درخواست از طرف شما نبود، با پشتیبانی تماس بگیرید.')`,
+        [user.id]
+      );
+
+      await client.query('COMMIT');
+      return res.json({ ok: true });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Admin account recovery failed:', error.message);
+      return res.status(500).json({ error: 'بازیابی حساب انجام نشد' });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// =====================================================
 // ADMIN LOGIN
 // =====================================================
 

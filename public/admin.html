@@ -1259,8 +1259,8 @@ async function loadIdentityVerifications(){
       return '<tr>'+
         '<td>'+escapeHtml(v.user_name)+'</td>'+
         '<td>'+escapeHtml(v.document_type)+'<div class="ref">••••'+escapeHtml(v.document_number_last4 || '')+'</div></td>'+
-        '<td><button class="btn-primary identity-image" data-src="'+escapeHtml(v.document_image)+'">مشاهده مدرک</button></td>'+
-        '<td><button class="btn-primary identity-image" data-src="'+escapeHtml(v.selfie_image)+'">مشاهده سلفی</button></td>'+
+        '<td>'+(v.has_document_image?'<button class="btn-primary identity-image" data-kind="document" data-id="'+Number(v.id)+'">مشاهده مدرک</button>':'حذف شده')+'</td>'+
+        '<td>'+(v.has_selfie_image?'<button class="btn-primary identity-image" data-kind="selfie" data-id="'+Number(v.id)+'">مشاهده سلفی</button>':'حذف شده')+'</td>'+
         '<td><span class="pill '+statusClass(v.status)+'">'+escapeHtml(identityAdminStatusLabel(v.status))+'</span></td>'+
         '<td>'+actions+'</td></tr>';
     }).join('');

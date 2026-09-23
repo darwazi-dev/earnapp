@@ -282,7 +282,7 @@ td{
     <button
       class="btn-primary"
       style="width:100%;margin-top:14px"
-      onclick="adminLogin()"
+      id="adminLoginBtn"
     >
       ورود
     </button>
@@ -297,7 +297,7 @@ td{
     <div class="topbar">
       <h1 style="margin:0">پنل ادمین — کاریاب</h1>
 
-      <button class="btn-logout" onclick="logoutAdmin()">
+      <button class="btn-logout" id="adminLogoutBtn">
         خروج
       </button>
     </div>
@@ -314,7 +314,7 @@ td{
             بررسی نشده
           </div>
         </div>
-        <button class="btn-primary" onclick="reconcileWallets()">بررسی</button>
+        <button class="btn-primary" id="reconcileBtn">بررسی</button>
       </div>
     </div>
 
@@ -323,7 +323,7 @@ td{
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
         <h3 style="margin:0">درخواست‌های برداشت</h3>
 
-        <button class="btn-primary" onclick="loadDashboard()">
+        <button class="btn-primary" id="refreshDashboardBtn">
           بروزرسانی
         </button>
       </div>
@@ -354,7 +354,7 @@ td{
         <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
         <h3 style="margin:0">هشدارهای امنیتی / Fraud Flags</h3>
-        <button class="btn-primary" onclick="loadFraudFlags()">بروزرسانی</button>
+        <button class="btn-primary" id="refreshFraudBtn">بروزرسانی</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -371,7 +371,7 @@ td{
 <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
         <h3 style="margin:0">درخواست‌های پشتیبانی</h3>
-        <button class="btn-primary" onclick="loadSupportTickets()">بروزرسانی</button>
+        <button class="btn-primary" id="refreshSupportBtn">بروزرسانی</button>
       </div>
       <div class="table-wrap">
         <table>
@@ -1058,6 +1058,13 @@ async function rejectWithdrawal(id){
   }
 }
 
+
+document.getElementById('adminLoginBtn')?.addEventListener('click', adminLogin);
+document.getElementById('adminLogoutBtn')?.addEventListener('click', logoutAdmin);
+document.getElementById('reconcileBtn')?.addEventListener('click', reconcileWallets);
+document.getElementById('refreshDashboardBtn')?.addEventListener('click', loadDashboard);
+document.getElementById('refreshFraudBtn')?.addEventListener('click', loadFraudFlags);
+document.getElementById('refreshSupportBtn')?.addEventListener('click', loadSupportTickets);
 
 document
   .getElementById('adminPass')

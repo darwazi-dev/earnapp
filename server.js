@@ -2021,6 +2021,91 @@ app.get(
 );
 
 // =====================================================
+// ADMIN WALLET RECONCILIATION
+// =====================================================
+
+app.get(
+  '/api/admin/wallet-reconciliation',
+  adminRequired,
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        `
+        SELECT
+          u.id AS user_id,
+          u.name,
+          u.phone,
+          COALESCE(w.available_balance_minor, 0)::bigint AS available_minor,
+          COALESCE(w.pending_balance_minor, 0)::bigint AS pending_minor,
+          COALESCE((
+            SELECT SUM(t.amount_minor)
+            FROM transactions t
+            WHERE t.user_id = u.id
+              AND t.type = 'EARNING'
+              AND t.status = 'PENDING'
+          ), 0)::bigint AS expected_pending_minor,
+          COALESCE((
+            SELECT SUM(t.amount_minor)
+            FROM transactions t
+            WHERE t.user_id = u.id
+              AND t.type = 'EARNING'
+              AND t.status = 'APPROVED'
+          ), 0)::bigint AS approved_earnings_minor,
+          COALESCE((
+            SELECT SUM(wd.amount_minor)
+            FROM withdrawals wd
+            WHERE wd.user_id = u.id
+              AND wd.status IN (
+                'REQUESTED','UNDER_REVIEW','APPROVED','PROCESSING','PAID'
+              )
+          ), 0)::bigint AS reserved_or_paid_withdrawals_minor
+        FROM users u
+        LEFT JOIN wallets w ON w.user_id = u.id
+        ORDER BY u.id
+        LIMIT 500
+        `
+      );
+
+      const users = result.rows.map(row => {
+        const available = Number(row.available_minor);
+        const pending = Number(row.pending_minor);
+        const expectedPending = Number(row.expected_pending_minor);
+        const approved = Number(row.approved_earnings_minor);
+        const withdrawals = Number(row.reserved_or_paid_withdrawals_minor);
+        const expectedAvailable = approved - withdrawals;
+
+        return {
+          userId: row.user_id,
+          name: row.name,
+          phone: row.phone,
+          available: minorToAfn(available),
+          pending: minorToAfn(pending),
+          expectedAvailable: minorToAfn(expectedAvailable),
+          expectedPending: minorToAfn(expectedPending),
+          availableDifference: minorToAfn(available - expectedAvailable),
+          pendingDifference: minorToAfn(pending - expectedPending),
+          ok:
+            available === expectedAvailable &&
+            pending === expectedPending
+        };
+      });
+
+      res.json({
+        ok: users.every(user => user.ok),
+        checkedUsers: users.length,
+        mismatches: users.filter(user => !user.ok).length,
+        users
+      });
+    } catch (error) {
+      console.error('Wallet reconciliation failed:', error);
+      res.status(500).json({
+        error: 'بررسی تطبیق کیف پول انجام نشد'
+      });
+    }
+  }
+);
+
+// =====================================================
 // ADMIN SUPPORT TICKETS
 // =====================================================
 

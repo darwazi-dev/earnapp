@@ -419,9 +419,48 @@ async function loadWalletSummary() {
     }
 
     renderPendingInfo(data);
+    renderHomeWalletSummary(data);
   } catch (error) {
     console.error('Wallet summary:', error);
+    const recent = el('recent-activity-list');
+    if (recent) recent.innerHTML = '<div class="activity-empty">دریافت فعالیت‌های اخیر ناموفق بود</div>';
   }
+}
+
+function renderHomeWalletSummary(data) {
+  const available = el('home-available');
+  const pending = el('home-pending');
+  const lifetime = el('home-lifetime');
+  if (available) available.textContent = formatMoney(data.available || 0);
+  if (pending) pending.textContent = formatMoney(data.pending || 0);
+  if (lifetime) lifetime.textContent = formatMoney(data.lifetimeEarnings || 0);
+
+  const recent = el('recent-activity-list');
+  if (!recent) return;
+  const ledger = Array.isArray(data.ledger) ? data.ledger.slice(0, 5) : [];
+  if (!ledger.length) {
+    recent.innerHTML = '<div class="activity-empty">هنوز فعالیت مالی ثبت نشده است</div>';
+    return;
+  }
+
+  const labels = {
+    EARNING: 'درآمد',
+    EARNING_APPROVED: 'تأیید درآمد',
+    WITHDRAWAL_RESERVED: 'درخواست برداشت',
+    WITHDRAWAL_PAID: 'پرداخت برداشت',
+    REVERSAL: 'اصلاح درآمد',
+    ADJUSTMENT: 'اصلاح حساب'
+  };
+
+  recent.innerHTML = ledger.map(item => {
+    const amount = Number(item.amount || 0);
+    const sign = amount > 0 ? '+' : '';
+    const label = labels[item.type] || 'تراکنش کیف پول';
+    const status = escapeHtml(String(item.status || ''));
+    return '<div class="activity-item"><div><strong>' +
+      escapeHtml(label) + '</strong><div class="activity-meta">' + status +
+      '</div></div><strong>' + sign + formatMoney(amount) + ' ؋</strong></div>';
+  }).join('');
 }
 
 function renderPendingInfo(data) {

@@ -131,10 +131,6 @@ function publicId(prefix) {
   );
 }
 
-function normalizePhone(phone) {
-  return String(phone || '').trim();
-}
-
 function minorToAfn(value) {
   return Number(value || 0) / AFN_SCALE;
 }
@@ -637,7 +633,24 @@ async function promotePendingEarnings(userId) {
 // =====================================================
 
 function normalizePhone(value) {
-  return String(value || '').replace(/[\s()-]/g, '');
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const compact = raw.replace(/[\s().-]/g, '');
+
+  if (/^00\d+$/.test(compact)) {
+    return '+' + compact.slice(2);
+  }
+
+  if (/^\+\d+$/.test(compact)) {
+    return compact;
+  }
+
+  if (/^\d+$/.test(compact)) {
+    return compact;
+  }
+
+  return '';
 }
 
 function maskPhone(value) {

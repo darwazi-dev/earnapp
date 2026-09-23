@@ -9,9 +9,28 @@ const { Pool } = require('pg');
 
 const app = express();
 
+app.disable('x-powered-by');
+
 app.use(
   helmet({
-    contentSecurityPolicy: false
+    referrerPolicy: { policy: 'no-referrer' },
+    crossOriginOpenerPolicy: { policy: 'same-origin' },
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "base-uri": ["'self'"],
+        "object-src": ["'none'"],
+        "frame-ancestors": ["'none'"],
+        "form-action": ["'self'"],
+        "img-src": ["'self'", "data:", "blob:"],
+        "style-src": ["'self'", "'unsafe-inline'"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "connect-src": ["'self'", "https://*.cpx-research.com", "https://*.cpxresearch.com"],
+        "frame-src": ["'self'", "https://*.cpx-research.com", "https://*.cpxresearch.com"],
+        "upgrade-insecure-requests": []
+      }
+    }
   })
 );
 

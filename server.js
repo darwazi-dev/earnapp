@@ -81,7 +81,7 @@ const pool = new Pool({
 // MIDDLEWARE
 // =====================================================
 
-app.use(express.json({ limit: '100kb' }));
+app.use(express.json({ limit: '350kb' }));
 app.use(express.urlencoded({ extended: false }));
 
 app.use(
@@ -320,6 +320,51 @@ function adminRequired(req, res, next) {
 
   next();
 }
+
+// =====================================================
+// PROFILE
+// =====================================================
+
+app.get('/api/profile', authRequired, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT u.name, COALESCE(up.metadata->>'profile_photo', '') AS profile_photo
+       FROM users u
+       LEFT JOIN user_profiles up ON up.user_id = u.id
+       WHERE u.id = $1 LIMIT 1`,
+      [req.userId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'کاربر یافت نشد' });
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Profile read failed:', error);
+    res.status(500).json({ error: 'دریافت پروفایل انجام نشد' });
+  }
+});
+
+app.post('/api/profile/photo', authRequired, sensitiveLimiter, async (req, res) => {
+  try {
+    const photo = String(req.body?.photo || '');
+    if (!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(photo)) {
+      return res.status(400).json({ error: 'فرمت تصویر معتبر نیست' });
+    }
+    if (Buffer.byteLength(photo, 'utf8') > 250000) {
+      return res.status(400).json({ error: 'حجم تصویر زیاد است' });
+    }
+    await pool.query(
+      `INSERT INTO user_profiles (user_id, metadata)
+       VALUES ($1, jsonb_build_object('profile_photo', $2::text))
+       ON CONFLICT (user_id) DO UPDATE
+       SET metadata = COALESCE(user_profiles.metadata, '{}'::jsonb) || jsonb_build_object('profile_photo', $2::text),
+           updated_at = NOW()`,
+      [req.userId, photo]
+    );
+    res.json({ ok: true, photo });
+  } catch (error) {
+    console.error('Profile photo failed:', error);
+    res.status(500).json({ error: 'ذخیره تصویر پروفایل انجام نشد' });
+  }
+});
 
 // =====================================================
 // PENDING -> APPROVED

@@ -529,6 +529,17 @@ async function promotePendingEarnings(userId) {
           })
         ]
       );
+
+      await client.query(
+        `
+        INSERT INTO notifications (user_id, title, body)
+        VALUES ($1, 'درآمد تایید شد', $2)
+        `,
+        [
+          userId,
+          `مبلغ ؋${(amount / 100).toFixed(2)} از حالت در حال بررسی به موجودی قابل برداشت منتقل شد.`
+        ]
+      );
     }
 
     const walletUpdate = await client.query(
@@ -1374,6 +1385,17 @@ app.get(
               rewardMinor
             ]
           );
+
+          await client.query(
+            `
+            INSERT INTO notifications (user_id, title, body)
+            VALUES ($1, 'درآمد ثبت شد', $2)
+            `,
+            [
+              user.id,
+              `مبلغ ؋${(rewardMinor / 100).toFixed(2)} ثبت شد و تا پایان دوره بررسی در موجودی در حال بررسی می‌ماند.`
+            ]
+          );
         }
       }
 
@@ -1534,6 +1556,17 @@ app.get(
                 provider_transaction_id:
                   transId
               })
+            ]
+          );
+
+          await client.query(
+            `
+            INSERT INTO notifications (user_id, title, body)
+            VALUES ($1, 'اصلاح درآمد', $2)
+            `,
+            [
+              user.id,
+              `یک درآمد به مبلغ ؋${(amount / 100).toFixed(2)} توسط ارائه‌دهنده برگشت داده شد و کیف پول مطابق آن اصلاح شد.`
             ]
           );
         }
@@ -3373,6 +3406,17 @@ app.post(
             payment_reference:
               paymentReference
           })
+        ]
+      );
+
+      await client.query(
+        `
+        INSERT INTO notifications (user_id, title, body)
+        VALUES ($1, 'برداشت پرداخت شد', $2)
+        `,
+        [
+          withdrawal.user_id,
+          `درخواست برداشت ؋${(Number(withdrawal.amount_minor) / 100).toFixed(2)} با مرجع پرداخت ${paymentReference} پرداخت شد.`
         ]
       );
 

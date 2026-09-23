@@ -573,20 +573,38 @@ function renderHomeWalletSummary(data) {
     return;
   }
 
-  const labels = {
-    EARNING: 'درآمد',
-    EARNING_APPROVED: 'تأیید درآمد',
-    WITHDRAWAL_RESERVED: 'درخواست برداشت',
-    WITHDRAWAL_PAID: 'پرداخت برداشت',
-    REVERSAL: 'اصلاح درآمد',
-    ADJUSTMENT: 'اصلاح حساب'
+  const lang = localStorage.getItem('kariyabLanguage') || 'fa-AF';
+  const activityLabels = {
+    'fa-AF': {
+      EARNING:'درآمد', EARNING_APPROVED:'تأیید درآمد', WITHDRAWAL_RESERVED:'درخواست برداشت',
+      WITHDRAWAL_PAID:'پرداخت برداشت', WITHDRAWAL_REFUND:'برگشت برداشت', REVERSAL:'اصلاح درآمد',
+      ADJUSTMENT:'اصلاح حساب', LEGACY_RECONCILIATION_BASELINE:'تطبیق حساب', fallback:'تراکنش کیف پول'
+    },
+    'ps-AF': {
+      EARNING:'عاید', EARNING_APPROVED:'عاید تایید شو', WITHDRAWAL_RESERVED:'د ایستلو غوښتنه',
+      WITHDRAWAL_PAID:'ایستل تادیه شول', WITHDRAWAL_REFUND:'د ایستلو بېرته ستنول', REVERSAL:'د عاید سمون',
+      ADJUSTMENT:'د حساب سمون', LEGACY_RECONCILIATION_BASELINE:'د حساب تطبیق', fallback:'د بټوې معامله'
+    },
+    en: {
+      EARNING:'Earning', EARNING_APPROVED:'Earning approved', WITHDRAWAL_RESERVED:'Withdrawal request',
+      WITHDRAWAL_PAID:'Withdrawal paid', WITHDRAWAL_REFUND:'Withdrawal refund', REVERSAL:'Earning reversal',
+      ADJUSTMENT:'Account adjustment', LEGACY_RECONCILIATION_BASELINE:'Account reconciliation', fallback:'Wallet transaction'
+    }
   };
+  const statusLabels = {
+    'fa-AF': {PENDING:'در حال بررسی', APPROVED:'تأیید شده', REQUESTED:'درخواست شده', UNDER_REVIEW:'در حال بررسی', PROCESSING:'در حال پردازش', PAID:'پرداخت شده', REJECTED:'رد شده', FAILED:'ناموفق', CANCELLED:'لغو شده'},
+    'ps-AF': {PENDING:'د ارزونې لاندې', APPROVED:'تایید شوی', REQUESTED:'غوښتنه شوې', UNDER_REVIEW:'د ارزونې لاندې', PROCESSING:'د پروسس لاندې', PAID:'تادیه شوی', REJECTED:'رد شوی', FAILED:'ناکام', CANCELLED:'لغوه شوی'},
+    en: {PENDING:'Pending', APPROVED:'Approved', REQUESTED:'Requested', UNDER_REVIEW:'Under review', PROCESSING:'Processing', PAID:'Paid', REJECTED:'Rejected', FAILED:'Failed', CANCELLED:'Cancelled'}
+  };
+  const labels = activityLabels[lang] || activityLabels['fa-AF'];
+  const statuses = statusLabels[lang] || statusLabels['fa-AF'];
 
   recent.innerHTML = ledger.map(item => {
     const amount = Number(item.amount || 0);
     const sign = amount > 0 ? '+' : '';
-    const label = labels[item.type] || 'تراکنش کیف پول';
-    const status = escapeHtml(String(item.status || ''));
+    const label = labels[item.type] || labels.fallback;
+    const rawStatus = String(item.status || '').toUpperCase();
+    const status = escapeHtml(statuses[rawStatus] || rawStatus);
     return '<div class="activity-item"><div><strong>' +
       escapeHtml(label) + '</strong><div class="activity-meta">' + status +
       '</div></div><strong>' + sign + formatMoney(amount) + ' ؋</strong></div>';

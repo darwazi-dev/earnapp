@@ -1,15 +1,20 @@
 name: Validate Latest Database Backup
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Encrypted PostgreSQL Backup"]
+    types: [completed]
 permissions:
   contents: read
+  actions: read
 jobs:
   validate:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:16
+        image: postgres:18
         env:
           POSTGRES_USER: kariyab
           POSTGRES_PASSWORD: test-only-password
@@ -22,11 +27,25 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - name: Download latest backup artifact
-        uses: actions/download-artifact@v4
-        with:
-          pattern: kariyab-db-backup-*
-          merge-multiple: true
+      - name: Download backup artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          BACKUP_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            RUN_ID="$BACKUP_RUN_ID"
+          else
+            RUN_ID="$(gh run list --workflow database-backup.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          fi
+          test -n "$RUN_ID"
+          gh run download "$RUN_ID" --pattern 'kariyab-db-backup-*' --dir backup
+          DUMP="$(find backup -type f -name 'kariyab.dump.enc' -print -quit)"
+          SUM="$(find backup -type f -name 'kariyab.dump.enc.sha256' -print -quit)"
+          test -n "$DUMP"
+          test -n "$SUM"
+          cp "$DUMP" kariyab.dump.enc
+          cp "$SUM" kariyab.dump.enc.sha256
       - name: Verify and decrypt
         env:
           BACKUP_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}

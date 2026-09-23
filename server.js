@@ -1860,25 +1860,36 @@ app.get(
               );
             }
 
-            await client.query(
-              `
-              UPDATE wallets
-              SET
-                available_balance_minor =
-                  available_balance_minor - $2,
+            const approvedWalletResult =
+              await client.query(
+                `
+                UPDATE wallets
+                SET
+                  available_balance_minor =
+                    available_balance_minor - $2,
 
-                lifetime_earnings_minor =
-                  lifetime_earnings_minor - $2,
+                  lifetime_earnings_minor =
+                    lifetime_earnings_minor - $2,
 
-                updated_at = NOW()
+                  updated_at = NOW()
 
-              WHERE user_id = $1
-              `,
-              [
-                user.id,
-                amount
-              ]
-            );
+                WHERE
+                  user_id = $1
+                  AND available_balance_minor >= $2
+                  AND lifetime_earnings_minor >= $2
+                RETURNING id
+                `,
+                [
+                  user.id,
+                  amount
+                ]
+              );
+
+            if (!approvedWalletResult.rows.length) {
+              throw new Error(
+                'Approved wallet mismatch during reversal'
+              );
+            }
           }
 
           await client.query(

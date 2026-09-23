@@ -328,7 +328,15 @@ function adminRequired(req, res, next) {
 app.get('/api/profile', authRequired, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT u.name, COALESCE(up.metadata->>'profile_photo', '') AS profile_photo
+      `SELECT
+         u.name,
+         u.phone,
+         u.email,
+         u.phone_verified,
+         u.email_verified,
+         COALESCE(up.metadata->>'profile_photo', '') AS profile_photo,
+         COALESCE(up.metadata->>'language', 'fa-AF') AS language,
+         COALESCE((up.metadata->>'notifications_enabled')::boolean, TRUE) AS notifications_enabled
        FROM users u
        LEFT JOIN user_profiles up ON up.user_id = u.id
        WHERE u.id = $1 LIMIT 1`,
@@ -339,6 +347,49 @@ app.get('/api/profile', authRequired, async (req, res) => {
   } catch (error) {
     console.error('Profile read failed:', error);
     res.status(500).json({ error: 'دریافت پروفایل انجام نشد' });
+  }
+});
+
+app.post('/api/profile/settings', authRequired, sensitiveLimiter, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim();
+    const language = String(req.body?.language || 'fa-AF').trim();
+    const notificationsEnabled = req.body?.notificationsEnabled !== false;
+
+    if (name.length < 2 || name.length > 120) {
+      return res.status(400).json({ error: 'نام باید بین ۲ تا ۱۲۰ کاراکتر باشد' });
+    }
+    if (!['fa-AF', 'ps-AF', 'en'].includes(language)) {
+      return res.status(400).json({ error: 'زبان انتخاب‌شده معتبر نیست' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `UPDATE users SET name = $2, updated_at = NOW() WHERE id = $1`,
+        [req.userId, name]
+      );
+      await client.query(
+        `INSERT INTO user_profiles (user_id, metadata)
+         VALUES ($1, jsonb_build_object('language', $2::text, 'notifications_enabled', $3::boolean))
+         ON CONFLICT (user_id) DO UPDATE
+         SET metadata = COALESCE(user_profiles.metadata, '{}'::jsonb)
+           || jsonb_build_object('language', $2::text, 'notifications_enabled', $3::boolean),
+             updated_at = NOW()`,
+        [req.userId, language, notificationsEnabled]
+      );
+      await client.query('COMMIT');
+      res.json({ ok: true, name, language, notifications_enabled: notificationsEnabled });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Profile settings failed:', error);
+    res.status(500).json({ error: 'ذخیره تنظیمات حساب انجام نشد' });
   }
 });
 

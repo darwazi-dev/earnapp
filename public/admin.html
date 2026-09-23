@@ -1148,6 +1148,15 @@ async function reconcileWallets(){
         btn.textContent='جزئیات';
         btn.addEventListener('click',()=>showFinancialDiagnostics(Number(u.userId)));
         row.appendChild(btn);
+
+        const baselineBtn=document.createElement('button');
+        baselineBtn.className='btn-primary';
+        baselineBtn.style.marginRight='8px';
+        baselineBtn.style.padding='5px 9px';
+        baselineBtn.textContent='ثبت baseline آزمایشی';
+        baselineBtn.addEventListener('click',()=>createLegacyBaseline(Number(u.userId)));
+        row.appendChild(baselineBtn);
+
         details.appendChild(row);
       });
       box.appendChild(details);
@@ -1159,6 +1168,20 @@ async function reconcileWallets(){
   }
 }
 
+
+async function createLegacyBaseline(userId){
+  if(!confirm('این کار فقط اختلاف داده‌های آزمایشی قدیمی را با یک Ledger entry حسابرسی‌شده baseline می‌کند و موجودی کیف پول را تغییر نمی‌دهد. ادامه می‌دهید؟')) return;
+  try{
+    const data=await adminApi('/api/admin/wallet-reconciliation/'+encodeURIComponent(userId)+'/baseline',{
+      method:'POST',
+      body:JSON.stringify({})
+    });
+    showNotice(data.adjusted ? 'Baseline آزمایشی با Audit Log ثبت شد.' : 'نیازی به baseline نبود.');
+    await reconcileWallets();
+  }catch(e){
+    showNotice(e.message,'error');
+  }
+}
 
 async function showFinancialDiagnostics(userId){
   try{

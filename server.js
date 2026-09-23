@@ -65,6 +65,10 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
+const VONAGE_API_KEY = String(process.env.VONAGE_API_KEY || '').trim();
+const VONAGE_API_SECRET = String(process.env.VONAGE_API_SECRET || '').trim();
+const OTP_BRAND = String(process.env.OTP_BRAND || 'Kariyab').trim();
+
 const CPX_APP_ID = String(process.env.CPX_APP_ID || '36387').trim();
 const CPX_SECURE_HASH = String(process.env.CPX_SECURE_HASH || '').trim();
 
@@ -658,6 +662,308 @@ function maskPhone(value) {
   if (phone.length <= 4) return '****';
   return phone.slice(0, 3) + '***' + phone.slice(-3);
 }
+
+// =====================================================
+// OTP / ACCOUNT RECOVERY
+// =====================================================
+
+function vonageConfigured() {
+  return Boolean(VONAGE_API_KEY && VONAGE_API_SECRET);
+}
+
+function vonageAuthHeader() {
+  return 'Basic ' + Buffer.from(VONAGE_API_KEY + ':' + VONAGE_API_SECRET).toString('base64');
+}
+
+async function vonageRequest(pathname, options = {}) {
+  if (!vonageConfigured()) {
+    const error = new Error('OTP provider is not configured');
+    error.code = 'OTP_NOT_CONFIGURED';
+    throw error;
+  }
+
+  const response = await fetch('https://api.nexmo.com' + pathname, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': vonageAuthHeader(),
+      ...(options.headers || {})
+    }
+  });
+
+  let data = {};
+  try { data = await response.json(); } catch {}
+
+  if (!response.ok) {
+    const error = new Error('OTP provider request failed');
+    error.status = response.status;
+    error.providerData = data;
+    throw error;
+  }
+
+  return data;
+}
+
+async function startVonageOtp(phone) {
+  const to = normalizePhone(phone).replace(/^\+/, '');
+  if (!/^\d{7,15}$/.test(to)) throw new Error('Invalid international phone number');
+
+  return vonageRequest('/v2/verify', {
+    method: 'POST',
+    body: JSON.stringify({
+      brand: OTP_BRAND.slice(0, 18),
+      code_length: 6,
+      workflow: [{ channel: 'sms', to }]
+    })
+  });
+}
+
+async function checkVonageOtp(requestId, code) {
+  return vonageRequest('/v2/verify/' + encodeURIComponent(requestId), {
+    method: 'POST',
+    body: JSON.stringify({ code })
+  });
+}
+
+app.post('/api/auth/phone-verification/send',
+  authRequired, sensitiveLimiter, async (req, res) => {
+    try {
+      const userResult = await pool.query(
+        'SELECT id, phone, phone_verified FROM users WHERE id = $1 LIMIT 1',
+        [req.userId]
+      );
+      const user = userResult.rows[0];
+      if (!user) return res.status(404).json({ error: 'کاربر یافت نشد' });
+      if (user.phone_verified) return res.json({ ok: true, alreadyVerified: true });
+
+      const provider = await startVonageOtp(user.phone);
+      if (!provider.request_id) throw new Error('OTP provider did not return request_id');
+
+      await pool.query(
+        `UPDATE otp_verifications
+         SET status = 'CANCELLED'
+         WHERE user_id = $1 AND purpose = 'PHONE_VERIFY' AND status = 'REQUESTED'`,
+        [req.userId]
+      );
+      await pool.query(
+        `INSERT INTO otp_verifications
+          (user_id, phone, purpose, provider, provider_request_id, status, expires_at)
+         VALUES ($1, $2, 'PHONE_VERIFY', 'VONAGE', $3, 'REQUESTED', NOW() + INTERVAL '10 minutes')`,
+        [req.userId, normalizePhone(user.phone), provider.request_id]
+      );
+
+      res.json({ ok: true, phone: maskPhone(user.phone), expiresInSeconds: 600 });
+    } catch (error) {
+      console.error('Phone OTP send failed:', error.message);
+      res.status(error.code === 'OTP_NOT_CONFIGURED' ? 503 : 502).json({
+        error: error.code === 'OTP_NOT_CONFIGURED'
+          ? 'سرویس تایید شماره هنوز فعال نشده است'
+          : 'ارسال کد تایید انجام نشد'
+      });
+    }
+  }
+);
+
+app.post('/api/auth/phone-verification/verify',
+  authRequired, sensitiveLimiter, async (req, res) => {
+    const code = String(req.body?.code || '').trim();
+    if (!/^\d{4,10}$/.test(code)) return res.status(400).json({ error: 'کد تایید معتبر نیست' });
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `SELECT * FROM otp_verifications
+         WHERE user_id = $1 AND purpose = 'PHONE_VERIFY' AND status = 'REQUESTED'
+         ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
+        [req.userId]
+      );
+      const otp = result.rows[0];
+      if (!otp || new Date(otp.expires_at) <= new Date()) {
+        if (otp) await client.query("UPDATE otp_verifications SET status = 'EXPIRED' WHERE id = $1", [otp.id]);
+        await client.query('COMMIT');
+        return res.status(400).json({ error: 'کد منقضی شده یا درخواست فعالی وجود ندارد' });
+      }
+      if (Number(otp.attempts) >= 3) {
+        await client.query("UPDATE otp_verifications SET status = 'FAILED' WHERE id = $1", [otp.id]);
+        await client.query('COMMIT');
+        return res.status(429).json({ error: 'تعداد تلاش‌های مجاز تمام شده است' });
+      }
+
+      await client.query('UPDATE otp_verifications SET attempts = attempts + 1 WHERE id = $1', [otp.id]);
+      let checked;
+      try { checked = await checkVonageOtp(otp.provider_request_id, code); }
+      catch {
+        await client.query('COMMIT');
+        return res.status(400).json({ error: 'کد تایید نادرست یا نامعتبر است' });
+      }
+      if (String(checked.status || '').toLowerCase() !== 'completed') {
+        await client.query('COMMIT');
+        return res.status(400).json({ error: 'تایید شماره کامل نشد' });
+      }
+
+      await client.query(
+        "UPDATE otp_verifications SET status = 'VERIFIED', verified_at = NOW() WHERE id = $1",
+        [otp.id]
+      );
+      await client.query(
+        'UPDATE users SET phone_verified = TRUE, updated_at = NOW() WHERE id = $1',
+        [req.userId]
+      );
+      await client.query('COMMIT');
+      res.json({ ok: true, phoneVerified: true });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Phone OTP verify failed:', error.message);
+      res.status(500).json({ error: 'تایید شماره انجام نشد' });
+    } finally { client.release(); }
+  }
+);
+
+app.post('/api/auth/password/forgot',
+  authLimiter, sensitiveLimiter, async (req, res) => {
+    const phone = normalizePhone(req.body?.phone);
+    const generic = { ok: true, message: 'اگر حسابی با این شماره وجود داشته باشد، کد بازیابی ارسال می‌شود.' };
+    if (!phone) return res.status(400).json({ error: 'شماره معتبر وارد کنید' });
+
+    try {
+      const userResult = await pool.query('SELECT id, phone FROM users WHERE phone = $1 LIMIT 1', [phone]);
+      const user = userResult.rows[0];
+      if (!user) return res.json(generic);
+
+      const provider = await startVonageOtp(user.phone);
+      if (!provider.request_id) throw new Error('OTP provider did not return request_id');
+
+      await pool.query(
+        "UPDATE otp_verifications SET status = 'CANCELLED' WHERE user_id = $1 AND purpose = 'PASSWORD_RESET' AND status = 'REQUESTED'",
+        [user.id]
+      );
+      await pool.query(
+        `INSERT INTO otp_verifications
+          (user_id, phone, purpose, provider, provider_request_id, status, expires_at)
+         VALUES ($1, $2, 'PASSWORD_RESET', 'VONAGE', $3, 'REQUESTED', NOW() + INTERVAL '10 minutes')`,
+        [user.id, phone, provider.request_id]
+      );
+      res.json(generic);
+    } catch (error) {
+      console.error('Password recovery OTP send failed:', error.message);
+      if (error.code === 'OTP_NOT_CONFIGURED') {
+        return res.status(503).json({ error: 'سرویس بازیابی رمز هنوز فعال نشده است' });
+      }
+      res.status(502).json({ error: 'ارسال کد بازیابی انجام نشد' });
+    }
+  }
+);
+
+app.post('/api/auth/password/verify-code',
+  authLimiter, sensitiveLimiter, async (req, res) => {
+    const phone = normalizePhone(req.body?.phone);
+    const code = String(req.body?.code || '').trim();
+    if (!phone || !/^\d{4,10}$/.test(code)) return res.status(400).json({ error: 'شماره یا کد معتبر نیست' });
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `SELECT o.* FROM otp_verifications o
+         JOIN users u ON u.id = o.user_id
+         WHERE o.phone = $1 AND u.phone = $1
+           AND o.purpose = 'PASSWORD_RESET' AND o.status = 'REQUESTED'
+         ORDER BY o.created_at DESC LIMIT 1 FOR UPDATE`,
+        [phone]
+      );
+      const otp = result.rows[0];
+      if (!otp || new Date(otp.expires_at) <= new Date()) {
+        if (otp) await client.query("UPDATE otp_verifications SET status = 'EXPIRED' WHERE id = $1", [otp.id]);
+        await client.query('COMMIT');
+        return res.status(400).json({ error: 'کد منقضی شده یا نامعتبر است' });
+      }
+      if (Number(otp.attempts) >= 3) {
+        await client.query("UPDATE otp_verifications SET status = 'FAILED' WHERE id = $1", [otp.id]);
+        await client.query('COMMIT');
+        return res.status(429).json({ error: 'تعداد تلاش‌های مجاز تمام شده است' });
+      }
+
+      await client.query('UPDATE otp_verifications SET attempts = attempts + 1 WHERE id = $1', [otp.id]);
+      let checked;
+      try { checked = await checkVonageOtp(otp.provider_request_id, code); }
+      catch {
+        await client.query('COMMIT');
+        return res.status(400).json({ error: 'کد بازیابی نادرست یا نامعتبر است' });
+      }
+      if (String(checked.status || '').toLowerCase() !== 'completed') {
+        await client.query('COMMIT');
+        return res.status(400).json({ error: 'تایید کد کامل نشد' });
+      }
+
+      await client.query(
+        "UPDATE otp_verifications SET status = 'VERIFIED', verified_at = NOW() WHERE id = $1",
+        [otp.id]
+      );
+      const resetToken = jwt.sign(
+        { userId: String(otp.user_id), otpId: String(otp.id), type: 'PASSWORD_RESET' },
+        JWT_SECRET,
+        { expiresIn: '10m', issuer: 'kariyab', audience: 'kariyab-password-reset' }
+      );
+      await client.query('COMMIT');
+      res.json({ ok: true, resetToken, expiresInSeconds: 600 });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Password recovery verify failed:', error.message);
+      res.status(500).json({ error: 'تایید کد بازیابی انجام نشد' });
+    } finally { client.release(); }
+  }
+);
+
+app.post('/api/auth/password/reset',
+  authLimiter, sensitiveLimiter, async (req, res) => {
+    const resetToken = String(req.body?.resetToken || '');
+    const password = String(req.body?.password || '');
+    if (password.length < 8) return res.status(400).json({ error: 'رمز عبور باید حداقل ۸ کاراکتر باشد' });
+
+    try {
+      const decoded = jwt.verify(resetToken, JWT_SECRET, {
+        issuer: 'kariyab',
+        audience: 'kariyab-password-reset'
+      });
+      if (decoded.type !== 'PASSWORD_RESET' || !decoded.userId || !decoded.otpId) throw new Error('Invalid reset token');
+
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const otpResult = await client.query(
+          `SELECT id FROM otp_verifications
+           WHERE id = $1 AND user_id = $2 AND purpose = 'PASSWORD_RESET'
+             AND status = 'VERIFIED' AND verified_at >= NOW() - INTERVAL '10 minutes'
+           LIMIT 1 FOR UPDATE`,
+          [decoded.otpId, decoded.userId]
+        );
+        if (!otpResult.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'مجوز بازیابی منقضی یا استفاده شده است' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 12);
+        await client.query(
+          'UPDATE users SET password_hash = $2, updated_at = NOW() WHERE id = $1',
+          [decoded.userId, passwordHash]
+        );
+        await client.query(
+          "UPDATE otp_verifications SET status = 'CANCELLED' WHERE id = $1",
+          [decoded.otpId]
+        );
+        await client.query('COMMIT');
+        res.json({ ok: true });
+      } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+      } finally { client.release(); }
+    } catch (error) {
+      console.error('Password reset failed:', error.message);
+      res.status(400).json({ error: 'مجوز بازیابی معتبر نیست یا منقضی شده است' });
+    }
+  }
+);
 
 // =====================================================
 // HEALTH

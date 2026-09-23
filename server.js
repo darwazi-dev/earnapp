@@ -26,6 +26,7 @@ app.use(
         "img-src": ["'self'", "data:", "blob:"],
         "style-src": ["'self'", "'unsafe-inline'"],
         "script-src": ["'self'", "'unsafe-inline'"],
+        "script-src-attr": ["'unsafe-inline'"],
         "connect-src": ["'self'", "https://*.cpx-research.com", "https://*.cpxresearch.com"],
         "frame-src": ["'self'", "https://*.cpx-research.com", "https://*.cpxresearch.com"],
         "upgrade-insecure-requests": []

@@ -133,18 +133,8 @@
         <input type="text" id="reg-phone" placeholder="0799123456">
       </div>
       <div class="input-group">
-        <label>رمز عبور (حداقل ۴ کاراکتر)</label>
+        <label>رمز عبور (حداقل ۸ کاراکتر)</label>
         <input type="password" id="reg-password" placeholder="••••••••">
-      </div>
-      <div class="input-group" style="background: #fdfdfe; padding: 10px; border: 1px dashed var(--primary); border-radius: 8px;">
-        <label style="color: var(--primary);">سوال امنیتی (برای بازیابی رمز در آینده)</label>
-        <select id="reg-question" style="margin-bottom: 10px;">
-          <option value="شهر تولد شما چیست؟">شهر تولد شما چیست؟</option>
-          <option value="نام اولین مکتب شما چیست؟">نام اولین مکتب شما چیست؟</option>
-          <option value="نام غذای مورد علاقه شما چیست؟">نام غذای مورد علاقه شما چیست؟</option>
-        </select>
-        <label>پاسخ سوال امنیتی</label>
-        <input type="text" id="reg-answer" placeholder="پاسخ خود را دقیق بنویسید">
       </div>
       <div id="register-err" class="err hidden"></div>
       <button onclick="doRegister()">ایجاد حساب</button>
@@ -171,39 +161,7 @@
     </div>
   </div>
 
-  <!-- مـودال فراموشی رمز عبور -->
-  <div id="forgot-modal" class="withdraw-modal hidden">
-    <div class="modal-content">
-      <h3>بازیابی رمز عبور</h3>
-      
-      <!-- گام اول: وارد کردن شماره تلفن -->
-      <div id="forgot-step1">
-        <div class="input-group">
-          <label>شماره تلفن خود را وارد کنید</label>
-          <input type="text" id="forgot-phone" placeholder="0799123456">
-        </div>
-        <button onclick="checkForgotPhone()">ادامه</button>
-      </div>
-
-      <!-- گام دوم: پاسخ به سوال امنیتی -->
-      <div id="forgot-step2" class="hidden">
-        <div class="input-group">
-          <label>سوال امنیتی حساب شما:</label>
-          <div id="forgot-question-text" style="background:#eee; padding:12px; border-radius:8px; font-weight:bold; font-size:14px; margin-bottom:10px;"></div>
-          <label>پاسخ شما</label>
-          <input type="text" id="forgot-answer" placeholder="پاسخ دقیق را بنویسید">
-        </div>
-        <div class="input-group">
-          <label>رمز عبور جدید</label>
-          <input type="password" id="forgot-new-password" placeholder="••••••••">
-        </div>
-        <button onclick="submitResetPassword()">تغییر رمز عبور و ورود</button>
-      </div>
-
-      <div id="forgot-err" class="err hidden" style="margin-bottom: 10px;"></div>
-      <button onclick="closeForgotModal()" style="background:#666; margin-top:10px;">انصراف</button>
-    </div>
-  </div>
+  <!-- بازیابی رمز فقط پس از اتصال سرویس واقعی OTP فعال می‌شود؛ رابط جعلی حذف شده است. -->
 
   <!-- مودال پشتیبانی -->
   <div id="support-modal" class="withdraw-modal hidden">

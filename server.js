@@ -2116,6 +2116,105 @@ app.get(
 );
 
 // =====================================================
+// ADMIN FRAUD FLAGS
+// =====================================================
+
+app.get(
+  '/api/admin/fraud-flags',
+  adminRequired,
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        `
+        SELECT
+          f.id,
+          f.user_id,
+          u.name AS user_name,
+          f.flag_type,
+          f.severity,
+          f.status,
+          f.details,
+          f.created_at,
+          f.updated_at
+        FROM fraud_flags f
+        LEFT JOIN users u ON u.id = f.user_id
+        ORDER BY
+          CASE f.status WHEN 'OPEN' THEN 0 WHEN 'UNDER_REVIEW' THEN 1 ELSE 2 END,
+          f.created_at DESC
+        LIMIT 200
+        `
+      );
+      res.json({ flags: result.rows });
+    } catch (error) {
+      console.error('Admin fraud flags failed:', error);
+      res.status(500).json({ error: 'دریافت هشدارهای امنیتی انجام نشد' });
+    }
+  }
+);
+
+app.post(
+  '/api/admin/fraud-flags/:id/status',
+  adminRequired,
+  async (req, res) => {
+    const status = String(req.body.status || '').trim().toUpperCase();
+    const allowed = new Set(['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED']);
+    if (!allowed.has(status)) {
+      return res.status(400).json({ error: 'وضعیت معتبر نیست' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const current = await client.query(
+        'SELECT * FROM fraud_flags WHERE id = $1 FOR UPDATE',
+        [req.params.id]
+      );
+      if (!current.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'هشدار یافت نشد' });
+      }
+
+      const oldStatus = current.rows[0].status;
+      const updated = await client.query(
+        `
+        UPDATE fraud_flags
+        SET status = $2, updated_at = NOW()
+        WHERE id = $1
+        RETURNING *
+        `,
+        [req.params.id, status]
+      );
+
+      await client.query(
+        `
+        INSERT INTO admin_actions (
+          action_type, entity_type, entity_id, old_value, new_value, metadata
+        )
+        VALUES (
+          'FRAUD_FLAG_STATUS_CHANGED', 'FRAUD_FLAG', $1, $2, $3, $4::jsonb
+        )
+        `,
+        [
+          String(req.params.id),
+          oldStatus,
+          status,
+          JSON.stringify({ user_id: current.rows[0].user_id })
+        ]
+      );
+
+      await client.query('COMMIT');
+      res.json({ ok: true, flag: updated.rows[0] });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Fraud flag update failed:', error);
+      res.status(500).json({ error: 'تغییر وضعیت هشدار انجام نشد' });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// =====================================================
 // ADMIN WALLET RECONCILIATION
 // =====================================================
 

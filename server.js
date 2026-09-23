@@ -1532,6 +1532,39 @@ app.get(
 );
 
 // =====================================================
+// WITHDRAWAL METHODS
+// =====================================================
+
+app.get(
+  '/api/withdrawal-methods',
+  authRequired,
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        `
+        SELECT code, name
+        FROM withdrawal_methods
+        WHERE enabled = TRUE
+        ORDER BY id
+        `
+      );
+
+      res.json({
+        methods: result.rows.map(row => ({
+          code: row.code,
+          name: row.name
+        }))
+      });
+    } catch (error) {
+      console.error('Withdrawal methods failed:', error);
+      res.status(500).json({
+        error: 'دریافت روش‌های برداشت انجام نشد'
+      });
+    }
+  }
+);
+
+// =====================================================
 // WITHDRAW
 // =====================================================
 

@@ -212,6 +212,7 @@
       <label class="account-row" style="display:flex;justify-content:space-between;align-items:center"><span>اعلان‌ها</span><input id="account-notifications" type="checkbox" style="width:auto"></label>
       <div class="account-row"><small>وضعیت شماره تلفن</small><strong id="account-phone-status">—</strong></div>
       <div class="account-row"><small>امنیت حساب</small><span>تغییر/بازیابی رمز پس از اتصال OTP واقعی فعال می‌شود.</span></div>
+      <div class="account-row"><small>احراز هویت برای برداشت</small><strong id="identity-status">در حال دریافت...</strong><button id="identity-open-btn" type="button" onclick="openIdentityVerification()" style="margin-top:8px;background:#111">احراز هویت</button></div>
       <div class="account-actions">
         <button type="button" onclick="saveAccountSettings()">ذخیره تنظیمات</button>
         <button type="button" onclick="chooseProfilePhoto()" style="background:#111">تغییر عکس</button>
@@ -221,6 +222,37 @@
   </div>
 
   <!-- بازیابی رمز فقط پس از اتصال سرویس واقعی OTP فعال می‌شود؛ رابط جعلی حذف شده است. -->
+
+  <div id="identity-modal" class="withdraw-modal hidden">
+    <div class="modal-content">
+      <h3>احراز هویت برای برداشت</h3>
+      <p class="hint">برای حفاظت از حساب و برداشت پول، تصویر مدرک هویتی و یک سلفی واضح ارسال کنید. این درخواست به‌صورت دستی بررسی می‌شود.</p>
+      <div id="identity-current-status" class="hint" style="margin-bottom:12px"></div>
+      <div class="input-group">
+        <label>نوع مدرک</label>
+        <select id="identity-document-type">
+          <option value="NATIONAL_ID">تذکره / مدرک ملی</option>
+          <option value="PASSPORT">پاسپورت</option>
+          <option value="OTHER">مدرک دیگر</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>شماره مدرک</label>
+        <input id="identity-document-number" type="text" maxlength="80" autocomplete="off" placeholder="شماره مدرک">
+      </div>
+      <div class="input-group">
+        <label>تصویر مدرک هویتی</label>
+        <input id="identity-document-image" type="file" accept="image/jpeg,image/png,image/webp">
+      </div>
+      <div class="input-group">
+        <label>سلفی واضح</label>
+        <input id="identity-selfie-image" type="file" accept="image/jpeg,image/png,image/webp" capture="user">
+      </div>
+      <div id="identity-err" class="err hidden"></div>
+      <button id="identity-submit-btn" type="button" onclick="submitIdentityVerification()">ارسال برای بررسی</button>
+      <button type="button" onclick="closeIdentityVerification()" style="background:#666;margin-top:10px">بستن</button>
+    </div>
+  </div>
 
   <!-- مودال پشتیبانی -->
   <div id="support-modal" class="withdraw-modal hidden">

@@ -2117,12 +2117,14 @@ app.get(
         // approved excludes transactions whose current status is REVERSED.
         // Therefore an earning reversed after approval is already absent from
         // approved and must NOT be subtracted a second time.
-        // Available balance is reconstructed from the immutable ledger:
-        // approved earnings add funds, approved reversals remove funds,
-        // withdrawal reservations remove funds, and withdrawal refunds add them.
-        // This remains correct even when the source transaction's current
-        // status changes from APPROVED to REVERSED.
-        const expectedAvailable = Number(row.ledger_available_minor);
+        // Reconstruct current available balance from economic events.
+        // Each earning that ever reached APPROVED contributes once; an
+        // approved reversal subtracts once; active/paid withdrawals subtract
+        // once. This avoids double-counting legacy zero-value transition rows.
+        const expectedAvailable =
+          approved +
+          reversedAfterApproval -
+          withdrawals;
 
         return {
           userId: row.user_id,

@@ -1144,6 +1144,7 @@ async function reconcileWallets(){
         ' | Pending فعلی: '+escapeHtml(u.pending)+' ؋' +
         ' | Pending مورد انتظار: '+escapeHtml(u.expectedPending)+' ؋' +
         ' | اختلاف Pending: '+escapeHtml(u.pendingDifference)+' ؋' +
+        ' <button class="btn-primary" style="margin-right:8px;padding:5px 9px" onclick="showFinancialDiagnostics('+Number(u.userId)+')">جزئیات</button>' +
         '</div>'
       ).join('');
 
@@ -1153,6 +1154,28 @@ async function reconcileWallets(){
     }
   }catch(e){
     box.textContent=e.message;
+  }
+}
+
+
+async function showFinancialDiagnostics(userId){
+  try{
+    const data=await adminApi('/api/admin/financial-diagnostics/'+encodeURIComponent(userId));
+    const lines=[
+      'Wallet: '+JSON.stringify(data.wallet),
+      'Transactions: '+JSON.stringify(data.transactions),
+      'Ledger: '+JSON.stringify(data.ledger),
+      'Withdrawals: '+JSON.stringify(data.withdrawals)
+    ];
+    const win=window.open('','_blank');
+    if(!win){
+      showNotice('مرورگر پنجره جزئیات را مسدود کرد.','error');
+      return;
+    }
+    win.document.write('<!doctype html><meta charset="utf-8"><title>Financial Diagnostics</title><pre style="white-space:pre-wrap;word-break:break-word;font-family:monospace;padding:20px">'+escapeHtml(lines.join('\n\n'))+'</pre>');
+    win.document.close();
+  }catch(e){
+    showNotice(e.message,'error');
   }
 }
 

@@ -1702,6 +1702,68 @@ app.get(
 );
 
 // =====================================================
+// NOTIFICATIONS
+// =====================================================
+
+app.get('/api/notifications', authRequired, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, title, body, read_at, created_at
+       FROM notifications
+       WHERE user_id = $1
+       ORDER BY created_at DESC, id DESC
+       LIMIT 50`,
+      [req.userId]
+    );
+    const unread = result.rows.reduce((count, row) => count + (row.read_at ? 0 : 1), 0);
+    res.json({
+      unread,
+      notifications: result.rows.map(row => ({
+        id: row.id,
+        title: row.title,
+        body: row.body,
+        read: Boolean(row.read_at),
+        createdAt: row.created_at
+      }))
+    });
+  } catch (error) {
+    console.error('Notifications failed:', error);
+    res.status(500).json({ error: 'دریافت اعلان‌ها انجام نشد' });
+  }
+});
+
+app.post('/api/notifications/:id/read', authRequired, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE notifications
+       SET read_at = COALESCE(read_at, NOW())
+       WHERE id = $1 AND user_id = $2
+       RETURNING id, read_at`,
+      [req.params.id, req.userId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'اعلان یافت نشد' });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Notification read failed:', error);
+    res.status(500).json({ error: 'به‌روزرسانی اعلان انجام نشد' });
+  }
+});
+
+app.post('/api/notifications/read-all', authRequired, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE notifications SET read_at = NOW()
+       WHERE user_id = $1 AND read_at IS NULL`,
+      [req.userId]
+    );
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Notifications read-all failed:', error);
+    res.status(500).json({ error: 'به‌روزرسانی اعلان‌ها انجام نشد' });
+  }
+});
+
+// =====================================================
 // WITHDRAWAL METHODS
 // =====================================================
 

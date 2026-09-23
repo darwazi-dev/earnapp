@@ -2302,6 +2302,7 @@ app.get(
 app.post(
   '/api/withdraw',
   authRequired,
+  sensitiveLimiter,
   async (req, res) => {
     const amountMinor =
       afnToMinor(req.body.amount);
@@ -2710,6 +2711,7 @@ app.get(
 app.post(
   '/api/admin/login',
   authLimiter,
+  sensitiveLimiter,
   (req, res) => {
     const password = String(req.body.password || '');
 

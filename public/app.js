@@ -224,7 +224,11 @@ function renderProfilePhoto(photo) {
   const avatar = el('profile-avatar');
   if (!avatar) return;
   if (photo) {
-    avatar.innerHTML = '<img src="' + photo + '" alt="عکس پروفایل">';
+    avatar.replaceChildren();
+    const img = document.createElement('img');
+    img.src = photo;
+    img.alt = 'عکس پروفایل';
+    avatar.appendChild(img);
   } else {
     avatar.textContent = (USER_NAME || 'ک').trim().charAt(0) || 'ک';
   }
@@ -361,9 +365,15 @@ function renderAccount(data) {
   if (notifications) notifications.checked = data.notifications_enabled !== false;
   if (status) status.textContent = data.phone_verified ? 'تأیید شده' : 'هنوز تأیید نشده';
   if (photo) {
-    photo.innerHTML = data.profile_photo
-      ? '<img src="' + data.profile_photo + '" alt="عکس پروفایل">'
-      : escapeHtml((data.name || 'ک').trim().charAt(0) || 'ک');
+    if (data.profile_photo) {
+      photo.replaceChildren();
+      const img = document.createElement('img');
+      img.src = data.profile_photo;
+      img.alt = 'عکس پروفایل';
+      photo.appendChild(img);
+    } else {
+      photo.textContent = (data.name || 'ک').trim().charAt(0) || 'ک';
+    }
   }
 }
 

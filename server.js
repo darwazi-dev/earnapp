@@ -3243,7 +3243,9 @@ app.get('/api/admin/identity-verifications', adminRequired, async (req, res) => 
   try {
     const result = await pool.query(
       `SELECT iv.id, iv.verification_id, iv.user_id, iv.document_type,
-              iv.document_number_last4, iv.document_image, iv.selfie_image,
+              iv.document_number_last4,
+              (iv.document_image IS NOT NULL) AS has_document_image,
+              (iv.selfie_image IS NOT NULL) AS has_selfie_image,
               iv.status, iv.rejection_reason, iv.submitted_at, iv.reviewed_at,
               u.name AS user_name, u.phone AS user_phone
        FROM identity_verifications iv
@@ -3256,6 +3258,27 @@ app.get('/api/admin/identity-verifications', adminRequired, async (req, res) => 
   } catch (error) {
     console.error('Admin identity verifications failed:', error);
     res.status(500).json({ error: 'دریافت درخواست‌های احراز هویت انجام نشد' });
+  }
+});
+
+app.get('/api/admin/identity-verifications/:id/evidence/:kind', adminRequired, sensitiveLimiter, async (req, res) => {
+  const kind = String(req.params.kind || '').toLowerCase();
+  const column = kind === 'document' ? 'document_image' : kind === 'selfie' ? 'selfie_image' : null;
+  if (!column) return res.status(400).json({ error: 'نوع تصویر معتبر نیست' });
+  try {
+    const result = await pool.query(
+      `SELECT ${column} AS image FROM identity_verifications WHERE id = $1 LIMIT 1`,
+      [req.params.id]
+    );
+    if (!result.rows.length || !result.rows[0].image) {
+      return res.status(404).json({ error: 'تصویر موجود نیست' });
+    }
+    res.set('Cache-Control', 'no-store, private');
+    res.set('Pragma', 'no-cache');
+    res.json({ image: result.rows[0].image });
+  } catch (error) {
+    console.error('Admin identity evidence failed:', error);
+    res.status(500).json({ error: 'دریافت تصویر احراز هویت انجام نشد' });
   }
 });
 
@@ -3289,7 +3312,8 @@ app.post('/api/admin/identity-verifications/:id/review', adminRequired, sensitiv
 
     await client.query(
       `UPDATE identity_verifications
-       SET status = $2, rejection_reason = $3, reviewed_at = NOW(), updated_at = NOW()
+       SET status = $2, rejection_reason = $3, reviewed_at = NOW(),
+           document_image = NULL, selfie_image = NULL, updated_at = NOW()
        WHERE id = $1`,
       [verification.id, decision, decision === 'REJECTED' ? reason : null]
     );

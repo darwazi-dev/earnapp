@@ -3236,6 +3236,101 @@ app.post(
 );
 
 // =====================================================
+// ADMIN IDENTITY VERIFICATION
+// =====================================================
+
+app.get('/api/admin/identity-verifications', adminRequired, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT iv.id, iv.verification_id, iv.user_id, iv.document_type,
+              iv.document_number_last4, iv.document_image, iv.selfie_image,
+              iv.status, iv.rejection_reason, iv.submitted_at, iv.reviewed_at,
+              u.name AS user_name, u.phone AS user_phone
+       FROM identity_verifications iv
+       JOIN users u ON u.id = iv.user_id
+       ORDER BY CASE iv.status WHEN 'UNDER_REVIEW' THEN 0 ELSE 1 END,
+                iv.submitted_at DESC
+       LIMIT 200`
+    );
+    res.json({ verifications: result.rows });
+  } catch (error) {
+    console.error('Admin identity verifications failed:', error);
+    res.status(500).json({ error: 'دریافت درخواست‌های احراز هویت انجام نشد' });
+  }
+});
+
+app.post('/api/admin/identity-verifications/:id/review', adminRequired, sensitiveLimiter, async (req, res) => {
+  const decision = String(req.body?.decision || '').trim().toUpperCase();
+  const reason = String(req.body?.reason || '').trim().slice(0, 1000);
+
+  if (!['VERIFIED', 'REJECTED'].includes(decision)) {
+    return res.status(400).json({ error: 'تصمیم بررسی معتبر نیست' });
+  }
+  if (decision === 'REJECTED' && reason.length < 3) {
+    return res.status(400).json({ error: 'برای رد درخواست دلیل بنویسید' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const current = await client.query(
+      'SELECT * FROM identity_verifications WHERE id = $1 FOR UPDATE',
+      [req.params.id]
+    );
+    if (!current.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'درخواست احراز هویت یافت نشد' });
+    }
+    const verification = current.rows[0];
+    if (verification.status !== 'UNDER_REVIEW') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'این درخواست قبلاً بررسی شده است' });
+    }
+
+    await client.query(
+      `UPDATE identity_verifications
+       SET status = $2, rejection_reason = $3, reviewed_at = NOW(), updated_at = NOW()
+       WHERE id = $1`,
+      [verification.id, decision, decision === 'REJECTED' ? reason : null]
+    );
+
+    await client.query(
+      `INSERT INTO admin_actions
+        (action_type, entity_type, entity_id, old_value, new_value, reason, metadata)
+       VALUES ('IDENTITY_VERIFICATION_REVIEWED', 'IDENTITY_VERIFICATION',
+               $1, $2::jsonb, $3::jsonb, $4, $5::jsonb)`,
+      [
+        String(verification.id),
+        JSON.stringify({ status: verification.status }),
+        JSON.stringify({ status: decision }),
+        decision === 'REJECTED' ? reason : null,
+        JSON.stringify({
+          verification_id: verification.verification_id,
+          user_id: verification.user_id
+        })
+      ]
+    );
+
+    await client.query(
+      `INSERT INTO notifications (user_id, title, body)
+       VALUES ($1, $2, $3)`,
+      decision === 'VERIFIED'
+        ? [verification.user_id, 'احراز هویت تایید شد', 'هویت حساب شما تایید شد. اکنون در صورت داشتن شرایط لازم می‌توانید درخواست برداشت ثبت کنید.']
+        : [verification.user_id, 'احراز هویت تایید نشد', 'درخواست احراز هویت شما رد شد. دلیل: ' + reason]
+    );
+
+    await client.query('COMMIT');
+    res.json({ ok: true, status: decision });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error('Admin identity review failed:', error);
+    res.status(500).json({ error: 'بررسی احراز هویت انجام نشد' });
+  } finally {
+    client.release();
+  }
+});
+
+// =====================================================
 // ADMIN SUPPORT TICKETS
 // =====================================================
 

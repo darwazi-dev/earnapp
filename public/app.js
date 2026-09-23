@@ -603,8 +603,26 @@ function escapeAttribute(value) {
 // UI compatibility only.
 // Password reset is intentionally not faked.
 // A verified OTP/recovery backend must be added before launch.
-function openForgotModal() {
-  toast('بازیابی امن رمز عبور در مرحله بعد فعال می‌شود');
+async function openForgotModal() {
+  const phone = prompt('شماره موبایل حساب خود را وارد کنید:');
+  if (phone === null) return;
+
+  const cleanPhone = phone.trim();
+  if (!cleanPhone) {
+    toast('شماره موبایل را وارد کنید');
+    return;
+  }
+
+  try {
+    const data = await api('/api/auth/password-recovery/request', {
+      method: 'POST',
+      body: JSON.stringify({ phone: cleanPhone })
+    });
+
+    toast(data.message || 'درخواست بازیابی ثبت شد');
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
 function closeForgotModal() {

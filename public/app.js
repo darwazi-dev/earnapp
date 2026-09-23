@@ -281,11 +281,17 @@ function applyLanguage(language) {
   };
   setText('#account-title',t.accountTitle);
   setText('#language-note',t.languageNote);
-  setText('.mobile-bottom-nav button:nth-child(1)',t.home);
-  setText('.mobile-bottom-nav button:nth-child(2)',t.opportunities);
-  setText('.mobile-bottom-nav button:nth-child(3)',t.withdraw);
-  setText('.mobile-bottom-nav button:nth-child(4)',t.support);
-  setText('.mobile-bottom-nav button:nth-child(5)',t.account);
+  const navLabels=[t.home,t.opportunities,t.withdraw,t.support,t.account];
+  document.querySelectorAll('.mobile-bottom-nav button').forEach((button,index)=>{
+    const icon=button.querySelector('.nav-icon');
+    const label=navLabels[index];
+    if(!label) return;
+    Array.from(button.childNodes).forEach(node=>{
+      if(node.nodeType===Node.TEXT_NODE) node.remove();
+    });
+    button.appendChild(document.createTextNode(label));
+    if(icon) button.insertBefore(icon,button.firstChild);
+  });
   setText('.account-actions button:nth-child(1)',t.save);
   setText('.account-actions button:nth-child(2)',t.changePhoto);
   setText('#account-sheet .account-panel > button:last-child',t.logout);

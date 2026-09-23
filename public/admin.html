@@ -339,6 +339,29 @@ td{
 
     </div>
 
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
+        <h3 style="margin:0">درخواست‌های پشتیبانی</h3>
+        <button class="btn-primary" onclick="loadSupportTickets()">بروزرسانی</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ticket ID</th>
+              <th>کاربر</th>
+              <th>شماره</th>
+              <th>موضوع</th>
+              <th>پیام</th>
+              <th>وضعیت</th>
+              <th>عملیات</th>
+            </tr>
+          </thead>
+          <tbody id="supportTable"></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
 </div>
@@ -650,6 +673,8 @@ async function loadDashboard(){
       adminApi('/api/admin/stats'),
       adminApi('/api/admin/withdrawals')
     ]);
+
+    loadSupportTickets();
 
 
     document.getElementById(
@@ -1023,6 +1048,69 @@ if(ADMIN_PASS){
     .classList.remove('hidden');
 
   loadDashboard();
+}
+
+
+function supportStatusLabel(status){
+  const map={
+    OPEN:'باز',
+    IN_PROGRESS:'در حال رسیدگی',
+    RESOLVED:'حل شده',
+    CLOSED:'بسته شده'
+  };
+  return map[status] || status;
+}
+
+async function loadSupportTickets(){
+  const tbody=document.getElementById('supportTable');
+  if(!tbody) return;
+
+  try{
+    const data=await adminApi('/api/admin/support/tickets');
+    const tickets=Array.isArray(data.tickets) ? data.tickets : [];
+
+    if(!tickets.length){
+      tbody.innerHTML='<tr><td colspan="7" class="empty">هیچ درخواست پشتیبانی وجود ندارد</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML=tickets.map(t=>`
+      <tr>
+        <td><strong>${escapeHtml(t.ticket_id)}</strong></td>
+        <td>${escapeHtml(t.user_name)}</td>
+        <td>${escapeHtml(t.user_phone)}</td>
+        <td>${escapeHtml(t.subject || t.category)}</td>
+        <td style="max-width:260px">${escapeHtml(t.message)}</td>
+        <td><span class="pill s-other">${escapeHtml(supportStatusLabel(t.status))}</span></td>
+        <td>
+          <select onchange="changeSupportStatus(${Number(t.id)},this.value)" style="padding:8px;border-radius:8px">
+            <option value="">تغییر وضعیت</option>
+            <option value="OPEN">باز</option>
+            <option value="IN_PROGRESS">در حال رسیدگی</option>
+            <option value="RESOLVED">حل شده</option>
+            <option value="CLOSED">بسته شده</option>
+          </select>
+        </td>
+      </tr>
+    `).join('');
+  }catch(e){
+    tbody.innerHTML='<tr><td colspan="7" class="empty">'+escapeHtml(e.message)+'</td></tr>';
+  }
+}
+
+async function changeSupportStatus(id,status){
+  if(!status) return;
+  try{
+    await adminApi(`/api/admin/support/tickets/${id}/status`,{
+      method:'POST',
+      body:JSON.stringify({status})
+    });
+    showNotice('وضعیت درخواست پشتیبانی تغییر کرد.');
+    await loadSupportTickets();
+  }catch(e){
+    showNotice(e.message,'error');
+    await loadSupportTickets();
+  }
 }
 
 </script>

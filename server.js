@@ -2140,11 +2140,14 @@ app.get(
         };
       });
 
+      const mismatchUsers = users.filter(user => !user.ok);
+
       res.json({
-        ok: users.every(user => user.ok),
+        ok: mismatchUsers.length === 0,
         checkedUsers: users.length,
-        mismatches: users.filter(user => !user.ok).length,
-        users
+        mismatches: mismatchUsers.length,
+        users,
+        mismatchUsers
       });
     } catch (error) {
       console.error('Wallet reconciliation failed:', error);

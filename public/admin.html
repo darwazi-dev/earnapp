@@ -307,6 +307,18 @@ td{
     <div id="stats" class="stats"></div>
 
     <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div>
+          <h3 style="margin:0 0 5px">بررسی تطبیق کیف پول</h3>
+          <div id="reconcileResult" style="font-size:13px;color:var(--muted)">
+            بررسی نشده
+          </div>
+        </div>
+        <button class="btn-primary" onclick="reconcileWallets()">بررسی</button>
+      </div>
+    </div>
+
+    <div class="card">
 
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
         <h3 style="margin:0">درخواست‌های برداشت</h3>
@@ -1110,6 +1122,23 @@ async function changeSupportStatus(id,status){
   }catch(e){
     showNotice(e.message,'error');
     await loadSupportTickets();
+  }
+}
+
+
+async function reconcileWallets(){
+  const box=document.getElementById('reconcileResult');
+  box.textContent='در حال بررسی...';
+
+  try{
+    const data=await adminApi('/api/admin/wallet-reconciliation');
+    if(data.ok){
+      box.innerHTML='<strong style="color:var(--ok)">سالم ✓</strong> — '+escapeHtml(data.checkedUsers)+' کاربر بررسی شد و اختلافی پیدا نشد.';
+    }else{
+      box.innerHTML='<strong style="color:var(--danger)">اختلاف مالی پیدا شد</strong> — '+escapeHtml(data.mismatches)+' مورد از '+escapeHtml(data.checkedUsers)+' کاربر. تا بررسی کامل، پرداخت جدید انجام ندهید.';
+    }
+  }catch(e){
+    box.textContent=e.message;
   }
 }
 

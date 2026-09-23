@@ -2096,8 +2096,11 @@ app.get(
         // A provider reversal that happened after approval must also be
         // subtracted because the original earning transaction becomes
         // REVERSED and is no longer counted in approved_earnings_minor.
+        // approved excludes transactions whose current status is REVERSED.
+        // Therefore an earning reversed after approval is already absent from
+        // approved and must NOT be subtracted a second time.
         const expectedAvailable =
-          approved - reversedAfterApproval - withdrawals;
+          approved - withdrawals;
 
         return {
           userId: row.user_id,

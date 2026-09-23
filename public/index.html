@@ -96,7 +96,10 @@
       .mobile-bottom-nav button .nav-icon{display:block;font-size:20px;margin-bottom:3px}
       .mobile-bottom-nav button.active{background:#fdecec;color:#D71212}
     }
-</style>
+
+    #identity-modal.identity-modal-css { display:none; }
+    #identity-modal.identity-modal-css:target { display:flex; }
+  </style>
 </head>
 <body>
   <button id="profile-avatar" class="profile-avatar" type="button" aria-label="تغییر عکس پروفایل" onclick="openAccount()">ک</button>
@@ -212,7 +215,7 @@
       <label class="account-row" style="display:flex;justify-content:space-between;align-items:center"><span>اعلان‌ها</span><input id="account-notifications" type="checkbox" style="width:auto"></label>
       <div class="account-row"><small>وضعیت شماره تلفن</small><strong id="account-phone-status">—</strong></div>
       <div class="account-row"><small>امنیت حساب</small><span>تغییر/بازیابی رمز پس از اتصال OTP واقعی فعال می‌شود.</span></div>
-      <div class="account-row"><small>احراز هویت برای برداشت</small><strong id="identity-status">در حال دریافت...</strong><button id="identity-open-btn" type="button" onclick="document.getElementById('identity-modal').classList.remove('hidden'); if (typeof loadIdentityVerificationStatus === 'function') loadIdentityVerificationStatus();" style="margin-top:8px;background:#111">احراز هویت</button></div>
+      <div class="account-row"><small>احراز هویت برای برداشت</small><strong id="identity-status">در حال دریافت...</strong><a id="identity-open-btn" href="#identity-modal" style="display:block;margin-top:8px;background:#111;color:#fff;text-align:center;padding:12px;border-radius:8px;text-decoration:none">احراز هویت</a></div>
       <div class="account-actions">
         <button type="button" onclick="saveAccountSettings()">ذخیره تنظیمات</button>
         <button type="button" onclick="chooseProfilePhoto()" style="background:#111">تغییر عکس</button>
@@ -223,7 +226,7 @@
 
   <!-- بازیابی رمز فقط پس از اتصال سرویس واقعی OTP فعال می‌شود؛ رابط جعلی حذف شده است. -->
 
-  <div id="identity-modal" class="withdraw-modal hidden">
+  <div id="identity-modal" class="withdraw-modal identity-modal-css">
     <div class="modal-content">
       <h3>احراز هویت برای برداشت</h3>
       <p class="hint">برای حفاظت از حساب و برداشت پول، تصویر مدرک هویتی و یک سلفی واضح ارسال کنید. این درخواست به‌صورت دستی بررسی می‌شود.</p>
@@ -250,7 +253,7 @@
       </div>
       <div id="identity-err" class="err hidden"></div>
       <button id="identity-submit-btn" type="button">ارسال برای بررسی</button>
-      <button id="identity-close-btn" type="button" onclick="document.getElementById('identity-modal').classList.add('hidden')" style="background:#666;margin-top:10px">بستن</button>
+      <a id="identity-close-btn" href="#" style="display:block;background:#666;color:#fff;text-align:center;padding:12px;border-radius:8px;text-decoration:none;margin-top:10px">بستن</a>
     </div>
   </div>
 

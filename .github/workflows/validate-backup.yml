@@ -1,0 +1,43 @@
+name: Validate Latest Database Backup
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: kariyab
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: kariyab_restore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U kariyab -d kariyab_restore_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Download latest backup artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: kariyab-db-backup-*
+          merge-multiple: true
+      - name: Verify and decrypt
+        env:
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+        run: |
+          test -n "$BACKUP_PASSWORD"
+          sha256sum -c kariyab.dump.enc.sha256
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -in kariyab.dump.enc -out kariyab.dump -pass env:BACKUP_PASSWORD
+      - name: Restore into isolated PostgreSQL
+        env:
+          PGPASSWORD: test-only-password
+        run: |
+          pg_restore --host=127.0.0.1 --port=5432 --username=kariyab --dbname=kariyab_restore_test --no-owner --no-privileges kariyab.dump
+          psql --host=127.0.0.1 --port=5432 --username=kariyab --dbname=kariyab_restore_test -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) AS users FROM users;"
+          psql --host=127.0.0.1 --port=5432 --username=kariyab --dbname=kariyab_restore_test -v ON_ERROR_STOP=1 -c "SELECT COUNT(*) AS ledger_rows FROM wallet_ledger;"

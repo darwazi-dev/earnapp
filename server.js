@@ -2084,6 +2084,15 @@ app.post(
         );
       }
 
+      await client.query(
+        `INSERT INTO notifications (user_id, title, body)
+         VALUES ($1, 'درخواست برداشت ثبت شد', $2)`,
+        [
+          req.userId,
+          `درخواست برداشت ؋${(amountMinor / 100).toFixed(2)} از طریق ${methodResult.rows[0].name} ثبت شد و در انتظار بررسی است.`
+        ]
+      );
+
       await client.query('COMMIT');
 
       res.json({
@@ -2915,6 +2924,15 @@ app.post(
         ]
       );
 
+      await client.query(
+        `INSERT INTO notifications (user_id, title, body)
+         VALUES ($1, 'برداشت تایید شد', $2)`,
+        [
+          withdrawal.user_id,
+          `درخواست برداشت ؋${(Number(withdrawal.amount_minor) / 100).toFixed(2)} تایید شد و برای پردازش آماده است.`
+        ]
+      );
+
       await client.query('COMMIT');
 
       res.json({ ok: true });
@@ -3116,6 +3134,16 @@ app.post(
         ]
       );
 
+      const rejectionReason = String(req.body.reason || '').trim();
+      await client.query(
+        `INSERT INTO notifications (user_id, title, body)
+         VALUES ($1, 'برداشت رد شد', $2)`,
+        [
+          withdrawal.user_id,
+          `درخواست برداشت ؋${(Number(withdrawal.amount_minor) / 100).toFixed(2)} رد شد.${rejectionReason ? ' دلیل: ' + rejectionReason : ''} مبلغ رزروشده به موجودی قابل برداشت برگشت داده شد.`
+        ]
+      );
+
       await client.query('COMMIT');
 
       res.json({ ok: true });
@@ -3197,6 +3225,21 @@ app.post(
           })
         ]
       );
+
+      const processingDetails = await client.query(
+        `SELECT user_id, amount_minor FROM withdrawals WHERE id = $1 LIMIT 1`,
+        [withdrawal.id]
+      );
+      if (processingDetails.rows.length) {
+        await client.query(
+          `INSERT INTO notifications (user_id, title, body)
+           VALUES ($1, 'برداشت در حال پردازش است', $2)`,
+          [
+            processingDetails.rows[0].user_id,
+            `برداشت ؋${(Number(processingDetails.rows[0].amount_minor) / 100).toFixed(2)} وارد مرحله پردازش پرداخت شد.`
+          ]
+        );
+      }
 
       await client.query('COMMIT');
       res.json({ ok: true });

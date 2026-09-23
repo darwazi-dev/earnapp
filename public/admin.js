@@ -942,3 +942,37 @@ document.addEventListener('change', (event) => {
     if (id && fraudSelect.value) changeFraudStatus(id, fraudSelect.value);
   }
 });
+
+async function recoverUserPassword(){
+  const phoneEl=document.getElementById('recoveryPhone');
+  const passEl=document.getElementById('recoveryPassword');
+  const resultEl=document.getElementById('recoveryResult');
+  const phone=phoneEl.value.trim();
+  const newPassword=passEl.value;
+
+  resultEl.className='err hidden';
+  resultEl.textContent='';
+
+  if(!phone || newPassword.length < 12){
+    resultEl.textContent='شماره حساب و رمز جدید حداقل ۱۲ کاراکتری را وارد کنید';
+    resultEl.classList.remove('hidden');
+    return;
+  }
+
+  if(!confirm('رمز همین حساب تغییر کند؟ اطلاعات کیف پول و سوابق مالی تغییر نمی‌کند.')) return;
+
+  try{
+    await adminApi('/api/admin/users/recover-password',{
+      method:'POST',
+      body:JSON.stringify({phone,newPassword})
+    });
+    passEl.value='';
+    resultEl.textContent='رمز حساب با موفقیت تغییر کرد. اکنون با رمز جدید وارد حساب کاربر شوید.';
+    resultEl.className='notice notice-ok';
+  }catch(e){
+    resultEl.textContent=e.message;
+    resultEl.className='notice notice-error';
+  }
+}
+
+document.getElementById('recoverUserBtn')?.addEventListener('click',recoverUserPassword);

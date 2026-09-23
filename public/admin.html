@@ -307,6 +307,17 @@ td{
     <div id="stats" class="stats"></div>
 
     <div class="card">
+      <h3 style="margin-top:0">بازیابی موقت حساب کاربر</h3>
+      <p style="font-size:13px;color:var(--muted)">فقط تا زمان فعال‌شدن OTP. شماره و رمز جدید در مرورگر خودت وارد می‌شود.</p>
+      <input id="recoveryPhone" type="tel" placeholder="شماره موبایل حساب">
+      <input id="recoveryPassword" type="password" minlength="12" autocomplete="new-password" placeholder="رمز جدید — حداقل ۱۲ کاراکتر" style="margin-top:10px">
+      <button class="btn-primary" id="recoverUserBtn" style="margin-top:10px">تغییر رمز حساب</button>
+      <div id="recoveryResult" class="err hidden"></div>
+    </div>
+
+
+
+    <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div>
           <h3 style="margin:0 0 5px">بررسی تطبیق کیف پول</h3>

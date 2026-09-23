@@ -43,6 +43,25 @@ async function migrate() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS otp_verifications (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+        phone VARCHAR(40) NOT NULL,
+        purpose VARCHAR(30) NOT NULL
+          CHECK (purpose IN ('PHONE_VERIFY','PASSWORD_RESET')),
+        provider VARCHAR(30) NOT NULL DEFAULT 'VONAGE',
+        provider_request_id VARCHAR(255),
+        status VARCHAR(30) NOT NULL DEFAULT 'REQUESTED'
+          CHECK (status IN ('REQUESTED','VERIFIED','FAILED','EXPIRED','CANCELLED')),
+        attempts INTEGER NOT NULL DEFAULT 0,
+        expires_at TIMESTAMPTZ NOT NULL,
+        verified_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_otp_phone_purpose_created
+        ON otp_verifications(phone, purpose, created_at DESC);
+
       CREATE TABLE IF NOT EXISTS devices (
         id BIGSERIAL PRIMARY KEY,
         user_id BIGINT NOT NULL

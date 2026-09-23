@@ -513,6 +513,77 @@ async function submitWithdraw() {
   }
 }
 
+
+// ---------- Support ----------
+function openSupport() {
+  hideErr('support-err');
+  el('support-modal')?.classList.remove('hidden');
+  loadSupportTickets();
+}
+
+function closeSupport() {
+  el('support-modal')?.classList.add('hidden');
+  hideErr('support-err');
+}
+
+async function submitSupportTicket() {
+  hideErr('support-err');
+  const category = el('support-category')?.value || '';
+  const subject = el('support-subject')?.value.trim() || '';
+  const message = el('support-message')?.value.trim() || '';
+
+  if (message.length < 5) {
+    return showErr('support-err', 'لطفاً توضیحات کامل‌تری بنویسید');
+  }
+
+  try {
+    const data = await api('/api/support/tickets', {
+      method: 'POST',
+      body: JSON.stringify({ category, subject, message })
+    });
+
+    if (el('support-subject')) el('support-subject').value = '';
+    if (el('support-message')) el('support-message').value = '';
+
+    toast('درخواست پشتیبانی ثبت شد: ' + (data.ticket?.ticket_id || ''));
+    await loadSupportTickets();
+  } catch (error) {
+    showErr('support-err', error.message);
+  }
+}
+
+async function loadSupportTickets() {
+  const box = el('support-history');
+  if (!box) return;
+
+  box.innerHTML = '<div class="hint">در حال دریافت درخواست‌ها...</div>';
+
+  try {
+    const data = await api('/api/support/tickets');
+    const tickets = Array.isArray(data.tickets) ? data.tickets : [];
+
+    if (!tickets.length) {
+      box.innerHTML = '<div class="hint">هنوز درخواست پشتیبانی ندارید.</div>';
+      return;
+    }
+
+    box.innerHTML = `
+      <div style="font-weight:bold;margin-bottom:10px;">درخواست‌های من</div>
+      ${tickets.map(t => `
+        <div class="wd-item" style="display:block;">
+          <div style="display:flex;justify-content:space-between;gap:8px;">
+            <strong>${escapeHtml(t.ticket_id)}</strong>
+            <span class="status-pill status-pending">${escapeHtml(t.status)}</span>
+          </div>
+          <div style="margin-top:6px;">${escapeHtml(t.subject || t.category)}</div>
+        </div>
+      `).join('')}
+    `;
+  } catch (error) {
+    box.innerHTML = '<div class="err">' + escapeHtml(error.message) + '</div>';
+  }
+}
+
 // ---------- Safe HTML helpers ----------
 function escapeHtml(value) {
   return String(value ?? '')

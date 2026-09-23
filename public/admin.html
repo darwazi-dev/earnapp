@@ -1155,27 +1155,46 @@ async function reconcileWallets(){
   try{
     const data=await adminApi('/api/admin/wallet-reconciliation');
     if(data.ok){
-      box.innerHTML='<strong style="color:var(--ok)">سالم ✓</strong> — '+escapeHtml(data.checkedUsers)+' کاربر بررسی شد و اختلافی پیدا نشد.';
+      box.textContent='سالم ✓ — '+String(data.checkedUsers)+' کاربر بررسی شد و اختلافی پیدا نشد.';
+      box.style.color='var(--ok)';
+      box.style.fontWeight='700';
     }else{
-      const details=(data.mismatchUsers || []).map(u =>
-        '<div style="margin-top:8px;direction:rtl">' +
-        'کاربر #'+escapeHtml(u.userId)+
-        ' | موجودی فعلی: '+escapeHtml(u.available)+' ؋' +
-        ' | موجودی مورد انتظار: '+escapeHtml(u.expectedAvailable)+' ؋' +
-        ' | اختلاف Available: '+escapeHtml(u.availableDifference)+' ؋' +
-        ' | Pending فعلی: '+escapeHtml(u.pending)+' ؋' +
-        ' | Pending مورد انتظار: '+escapeHtml(u.expectedPending)+' ؋' +
-        ' | اختلاف Pending: '+escapeHtml(u.pendingDifference)+' ؋' +
-        ' <button class="btn-primary" style="margin-right:8px;padding:5px 9px" onclick="showFinancialDiagnostics('+Number(u.userId)+')">جزئیات</button>' +
-        '</div>'
-      ).join('');
+      box.textContent='اختلاف مالی پیدا شد — '+String(data.mismatches)+' مورد از '+String(data.checkedUsers)+' کاربر. تا بررسی کامل، پرداخت جدید انجام ندهید.';
+      box.style.color='var(--danger)';
+      box.style.fontWeight='700';
 
-      box.innerHTML='<strong style="color:var(--danger)">اختلاف مالی پیدا شد</strong> — '+
-        escapeHtml(data.mismatches)+' مورد از '+escapeHtml(data.checkedUsers)+
-        ' کاربر. تا بررسی کامل، پرداخت جدید انجام ندهید.'+details;
+      const details=document.createElement('div');
+      details.style.marginTop='10px';
+      details.style.fontWeight='400';
+
+      (data.mismatchUsers || []).forEach(u=>{
+        const row=document.createElement('div');
+        row.style.marginTop='8px';
+        row.style.direction='rtl';
+        row.appendChild(document.createTextNode(
+          'کاربر #'+String(u.userId)+
+          ' | موجودی فعلی: '+String(u.available)+' ؋'+
+          ' | موجودی مورد انتظار: '+String(u.expectedAvailable)+' ؋'+
+          ' | اختلاف Available: '+String(u.availableDifference)+' ؋'+
+          ' | Pending فعلی: '+String(u.pending)+' ؋'+
+          ' | Pending مورد انتظار: '+String(u.expectedPending)+' ؋'+
+          ' | اختلاف Pending: '+String(u.pendingDifference)+' ؋ '
+        ));
+        const btn=document.createElement('button');
+        btn.className='btn-primary';
+        btn.style.marginRight='8px';
+        btn.style.padding='5px 9px';
+        btn.textContent='جزئیات';
+        btn.addEventListener('click',()=>showFinancialDiagnostics(Number(u.userId)));
+        row.appendChild(btn);
+        details.appendChild(row);
+      });
+      box.appendChild(details);
     }
   }catch(e){
     box.textContent=e.message;
+    box.style.color='var(--danger)';
+    box.style.fontWeight='700';
   }
 }
 

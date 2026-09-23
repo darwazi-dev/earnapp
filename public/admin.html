@@ -610,90 +610,32 @@ function statusClass(status){
 
 
 function renderActions(w){
+  const id=Number(w.id);
+  const status=String(w.rawStatus || '');
 
-  const id =
-    Number(w.id);
-
-  const status =
-    String(w.rawStatus || '');
-
-  if(
-    status === 'REQUESTED' ||
-    status === 'UNDER_REVIEW'
-  ){
-    return `
-      <div class="actions">
-
-        <button
-          class="btn-approve"
-          onclick="approveWithdrawal(${id})"
-        >
-          تأیید
-        </button>
-
-        <button
-          class="btn-reject"
-          onclick="rejectWithdrawal(${id})"
-        >
-          رد
-        </button>
-
-      </div>
-    `;
+  if(status === 'REQUESTED' || status === 'UNDER_REVIEW'){
+    return '<div class="actions">'+
+      '<button class="btn-approve withdrawal-action" data-action="approve" data-id="'+id+'">تأیید</button>'+
+      '<button class="btn-reject withdrawal-action" data-action="reject" data-id="'+id+'">رد</button>'+
+      '</div>';
   }
-
 
   if(status === 'APPROVED'){
-
-    return `
-      <div class="actions">
-
-        <button
-          class="btn-processing"
-          onclick="markProcessing(${id})"
-        >
-          شروع پردازش
-        </button>
-
-        <button
-          class="btn-paid"
-          onclick="markPaid(${id})"
-        >
-          ثبت پرداخت
-        </button>
-
-        <button
-          class="btn-reject"
-          onclick="rejectWithdrawal(${id})"
-        >
-          رد
-        </button>
-
-      </div>
-    `;
+    return '<div class="actions">'+
+      '<button class="btn-processing withdrawal-action" data-action="processing" data-id="'+id+'">شروع پردازش</button>'+
+      '<button class="btn-paid withdrawal-action" data-action="paid" data-id="'+id+'">ثبت پرداخت</button>'+
+      '<button class="btn-reject withdrawal-action" data-action="reject" data-id="'+id+'">رد</button>'+
+      '</div>';
   }
-
 
   if(status === 'PROCESSING'){
-
-    return `
-      <div class="actions">
-
-        <button
-          class="btn-paid"
-          onclick="markPaid(${id})"
-        >
-          ثبت پرداخت
-        </button>
-
-      </div>
-    `;
+    return '<div class="actions">'+
+      '<button class="btn-paid withdrawal-action" data-action="paid" data-id="'+id+'">ثبت پرداخت</button>'+
+      '</div>';
   }
-
 
   return '—';
 }
-
 
 async function loadDashboard(){
 
@@ -1065,6 +1007,18 @@ document.getElementById('reconcileBtn')?.addEventListener('click', reconcileWall
 document.getElementById('refreshDashboardBtn')?.addEventListener('click', loadDashboard);
 document.getElementById('refreshFraudBtn')?.addEventListener('click', loadFraudFlags);
 document.getElementById('refreshSupportBtn')?.addEventListener('click', loadSupportTickets);
+
+document.getElementById('withdrawalTable')?.addEventListener('click', async (event)=>{
+  const button=event.target.closest('.withdrawal-action');
+  if(!button) return;
+  const id=Number(button.dataset.id);
+  const action=button.dataset.action;
+  if(!Number.isFinite(id)) return;
+  if(action==='approve') return approveWithdrawal(id);
+  if(action==='reject') return rejectWithdrawal(id);
+  if(action==='processing') return markProcessing(id);
+  if(action==='paid') return markPaid(id);
+});
 
 document
   .getElementById('adminPass')

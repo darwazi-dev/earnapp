@@ -2149,6 +2149,106 @@ app.post('/api/notifications/read-all', authRequired, async (req, res) => {
 });
 
 // =====================================================
+// IDENTITY VERIFICATION
+// =====================================================
+
+function validIdentityImage(value) {
+  const image = String(value || '');
+  return /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(image) &&
+    Buffer.byteLength(image, 'utf8') <= 700000;
+}
+
+app.get('/api/identity-verification', authRequired, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT verification_id, document_type, document_number_last4,
+              status, rejection_reason, submitted_at, reviewed_at
+       FROM identity_verifications
+       WHERE user_id = $1
+       ORDER BY submitted_at DESC, id DESC
+       LIMIT 1`,
+      [req.userId]
+    );
+    const row = result.rows[0];
+    res.json({
+      status: row?.status || 'UNVERIFIED',
+      verification: row || null
+    });
+  } catch (error) {
+    console.error('Identity verification status failed:', error);
+    res.status(500).json({ error: 'دریافت وضعیت احراز هویت انجام نشد' });
+  }
+});
+
+app.post('/api/identity-verification', authRequired, sensitiveLimiter, async (req, res) => {
+  const documentType = String(req.body?.documentType || '').trim().toUpperCase();
+  const documentNumber = String(req.body?.documentNumber || '').replace(/\s+/g, '').trim();
+  const documentImage = String(req.body?.documentImage || '');
+  const selfieImage = String(req.body?.selfieImage || '');
+
+  if (!['NATIONAL_ID', 'PASSPORT', 'OTHER'].includes(documentType)) {
+    return res.status(400).json({ error: 'نوع مدرک معتبر نیست' });
+  }
+  if (documentNumber.length < 4 || documentNumber.length > 80) {
+    return res.status(400).json({ error: 'شماره مدرک معتبر نیست' });
+  }
+  if (!validIdentityImage(documentImage) || !validIdentityImage(selfieImage)) {
+    return res.status(400).json({ error: 'تصویر مدرک یا سلفی معتبر نیست یا حجم آن زیاد است' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const existing = await client.query(
+      `SELECT id, status
+       FROM identity_verifications
+       WHERE user_id = $1
+       ORDER BY submitted_at DESC, id DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [req.userId]
+    );
+
+    if (existing.rows[0]?.status === 'VERIFIED') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'هویت این حساب قبلاً تایید شده است' });
+    }
+    if (existing.rows[0]?.status === 'UNDER_REVIEW') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'درخواست احراز هویت شما در حال بررسی است' });
+    }
+
+    const verificationId = publicId('KYC');
+    const last4 = documentNumber.slice(-4);
+
+    await client.query(
+      `INSERT INTO identity_verifications
+        (verification_id, user_id, document_type, document_number_last4,
+         document_image, selfie_image, status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'UNDER_REVIEW')`,
+      [verificationId, req.userId, documentType, last4, documentImage, selfieImage]
+    );
+
+    await client.query(
+      `INSERT INTO notifications (user_id, title, body)
+       VALUES ($1, 'احراز هویت در حال بررسی است',
+               'مدرک و سلفی شما دریافت شد. نتیجه پس از بررسی اعلام می‌شود.')`,
+      [req.userId]
+    );
+
+    await client.query('COMMIT');
+    res.status(201).json({ ok: true, verificationId, status: 'UNDER_REVIEW' });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch {}
+    console.error('Identity verification submission failed:', error);
+    res.status(500).json({ error: 'ثبت درخواست احراز هویت انجام نشد' });
+  } finally {
+    client.release();
+  }
+});
+
+// =====================================================
 // WITHDRAWAL METHODS
 // =====================================================
 
@@ -2221,6 +2321,27 @@ app.post(
 
       const settings =
         await getRuntimeSettings(client);
+
+      const identityResult = await client.query(
+        `SELECT status
+         FROM identity_verifications
+         WHERE user_id = $1
+         ORDER BY submitted_at DESC, id DESC
+         LIMIT 1`,
+        [req.userId]
+      );
+
+      if (identityResult.rows[0]?.status !== 'VERIFIED') {
+        await client.query('ROLLBACK');
+        const identityStatus = identityResult.rows[0]?.status || 'UNVERIFIED';
+        return res.status(403).json({
+          error: identityStatus === 'UNDER_REVIEW'
+            ? 'احراز هویت شما هنوز در حال بررسی است'
+            : 'برای برداشت پول ابتدا باید احراز هویت حساب تکمیل شود',
+          code: 'IDENTITY_VERIFICATION_REQUIRED',
+          identityStatus
+        });
+      }
 
       if (
         amountMinor <

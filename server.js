@@ -1699,6 +1699,98 @@ app.post(
 );
 
 // =====================================================
+// SUPPORT TICKETS
+// =====================================================
+
+app.post(
+  '/api/support/tickets',
+  authRequired,
+  async (req, res) => {
+    const allowedCategories = new Set([
+      'EARNING_NOT_RECORDED',
+      'TASK_NOT_APPROVED',
+      'WITHDRAWAL_NOT_PAID',
+      'ACCOUNT',
+      'OTHER'
+    ]);
+
+    const category = String(req.body.category || '').trim().toUpperCase();
+    const subject = String(req.body.subject || '').trim().slice(0, 255);
+    const message = String(req.body.message || '').trim();
+
+    if (!allowedCategories.has(category)) {
+      return res.status(400).json({ error: 'دسته‌بندی درخواست معتبر نیست' });
+    }
+
+    if (message.length < 5 || message.length > 5000) {
+      return res.status(400).json({ error: 'متن درخواست باید بین ۵ تا ۵۰۰۰ کاراکتر باشد' });
+    }
+
+    try {
+      const ticketId = 'KRY-SUP-' + crypto.randomBytes(8).toString('hex').toUpperCase();
+
+      const result = await pool.query(
+        `
+        INSERT INTO support_tickets (
+          ticket_id,
+          user_id,
+          category,
+          subject,
+          message,
+          status
+        )
+        VALUES ($1, $2, $3, $4, $5, 'OPEN')
+        RETURNING
+          ticket_id,
+          category,
+          subject,
+          message,
+          status,
+          created_at
+        `,
+        [ticketId, req.userId, category, subject || null, message]
+      );
+
+      res.status(201).json({ ticket: result.rows[0] });
+    } catch (error) {
+      console.error('Create support ticket failed:', error);
+      res.status(500).json({ error: 'ثبت درخواست پشتیبانی انجام نشد' });
+    }
+  }
+);
+
+app.get(
+  '/api/support/tickets',
+  authRequired,
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        `
+        SELECT
+          ticket_id,
+          category,
+          subject,
+          message,
+          status,
+          created_at,
+          updated_at
+        FROM support_tickets
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 100
+        `,
+        [req.userId]
+      );
+
+      res.json({ tickets: result.rows });
+    } catch (error) {
+      console.error('List support tickets failed:', error);
+      res.status(500).json({ error: 'دریافت درخواست‌های پشتیبانی انجام نشد' });
+    }
+  }
+);
+
+// =====================================================
 // ADMIN LOGIN
 // =====================================================
 

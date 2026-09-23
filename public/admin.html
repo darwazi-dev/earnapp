@@ -398,8 +398,8 @@ td{
 
 <script>
 
-let ADMIN_PASS =
-  sessionStorage.getItem('kariyabAdminPass') || '';
+let ADMIN_TOKEN =
+  sessionStorage.getItem('kariyabAdminToken') || '';
 
 
 function escapeHtml(value){
@@ -433,7 +433,7 @@ async function adminApi(path,options={}){
 
   const headers = {
     'Content-Type':'application/json',
-    'X-Admin-Password':ADMIN_PASS,
+    'Authorization':'Bearer ' + ADMIN_TOKEN,
     ...(options.headers || {})
   };
 
@@ -451,10 +451,10 @@ async function adminApi(path,options={}){
   if(response.status === 401){
 
     sessionStorage.removeItem(
-      'kariyabAdminPass'
+      'kariyabAdminToken'
     );
 
-    ADMIN_PASS = '';
+    ADMIN_TOKEN = '';
 
     throw new Error(
       'دسترسی ادمین معتبر نیست'
@@ -521,11 +521,15 @@ async function adminLogin(){
       );
     }
 
-    ADMIN_PASS = password;
+    if(!data.token){
+      throw new Error('نشست امن ادمین ایجاد نشد');
+    }
+
+    ADMIN_TOKEN = data.token;
 
     sessionStorage.setItem(
-      'kariyabAdminPass',
-      password
+      'kariyabAdminToken',
+      data.token
     );
 
     document
@@ -549,10 +553,10 @@ async function adminLogin(){
 
 function logoutAdmin(){
 
-  ADMIN_PASS = '';
+  ADMIN_TOKEN = '';
 
   sessionStorage.removeItem(
-    'kariyabAdminPass'
+    'kariyabAdminToken'
   );
 
   location.reload();

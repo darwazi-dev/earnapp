@@ -102,15 +102,15 @@
   </style>
 </head>
 <body>
-  <button id="profile-avatar" class="profile-avatar" type="button" aria-label="تغییر عکس پروفایل" data-onclick="openAccount()">ک</button>
-  <input id="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" data-onchange="uploadProfilePhoto(this.files%3F.%5B0%5D)">
-  <button class="menu-toggle" type="button" aria-label="باز کردن منو" aria-controls="kariyab-menu" aria-expanded="false" data-onclick="toggleKariyabMenu(true)">☰</button>
-  <div id="menu-backdrop" class="menu-backdrop" data-onclick="toggleKariyabMenu(false)"></div>
+  <button id="profile-avatar" class="profile-avatar" type="button" aria-label="تغییر عکس پروفایل" data-ui="click-1">ک</button>
+  <input id="profile-photo-input" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" data-ui="change-2">
+  <button class="menu-toggle" type="button" aria-label="باز کردن منو" aria-controls="kariyab-menu" aria-expanded="false" data-ui="click-3">☰</button>
+  <div id="menu-backdrop" class="menu-backdrop" data-ui="click-4"></div>
   <nav id="kariyab-menu" class="side-menu" aria-label="منوی کاریاب">
-    <button class="menu-close" type="button" aria-label="بستن منو" data-onclick="toggleKariyabMenu(false)">×</button>
+    <button class="menu-close" type="button" aria-label="بستن منو" data-ui="click-5">×</button>
     <h2>کاریاب</h2>
     <a href="/">خانه</a>
-    <button type="button" data-onclick="toggleKariyabMenu(false)%3BopenSupport()">پشتیبانی</button>
+    <button type="button" data-ui="click-6">پشتیبانی</button>
     <a href="/about.html">درباره کاریاب</a>
     <a href="/earning-rules.html">قواعد درآمد</a>
     <a href="/withdrawal-policy.html">سیاست برداشت</a>
@@ -135,9 +135,9 @@
         <input type="password" id="login-password" placeholder="••••••••">
       </div>
       <div id="login-err" class="err hidden"></div>
-      <button data-onclick="doLogin()">ورود</button>
-      <button class="link-btn" data-onclick="showView('register')">هنوز حساب ندارید؟ ثبت‌نام کنید</button>
-      <button class="link-btn" data-onclick="openForgotModal()" style="color: #666; text-decoration: none; display: block; margin: 10px auto 0;">رمز عبور را فراموش کرده‌اید؟</button>
+      <button data-ui="click-7">ورود</button>
+      <button class="link-btn" data-ui="click-8">هنوز حساب ندارید؟ ثبت‌نام کنید</button>
+      <button class="link-btn" data-ui="click-9" style="color: #666; text-decoration: none; display: block; margin: 10px auto 0;">رمز عبور را فراموش کرده‌اید؟</button>
     </div>
 
     <!-- فرم ثبت نام -->
@@ -156,17 +156,17 @@
         <input type="password" id="reg-password" placeholder="••••••••">
       </div>
       <div id="register-err" class="err hidden"></div>
-      <button data-onclick="doRegister()">ایجاد حساب</button>
-      <button class="link-btn" data-onclick="showView('login')">حساب دارید؟ وارد شوید</button>
+      <button data-ui="click-10">ایجاد حساب</button>
+      <button class="link-btn" data-ui="click-11">حساب دارید؟ وارد شوید</button>
     </div>
 
     <!-- صفحه اصلی برنامه -->
     <div id="view-main" class="hidden">
-      <button id="notification-fab" class="notification-fab" type="button" data-onclick="openNotifications()" aria-label="اعلان‌ها">🔔<span id="notification-badge" class="notification-badge hidden">0</span></button>
+      <button id="notification-fab" class="notification-fab" type="button" data-ui="click-12" aria-label="اعلان‌ها">🔔<span id="notification-badge" class="notification-badge hidden">0</span></button>
       <div class="user-card">
         <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:10px;">
           <span id="user-name">کاربر</span>
-          <span data-onclick="logout()" style="cursor:pointer; text-decoration:underline; opacity:0.9;">خروج</span>
+          <span data-ui="click-13" style="cursor:pointer; text-decoration:underline; opacity:0.9;">خروج</span>
         </div>
         <div class="balance-title">موجودی قابل برداشت</div>
         <div class="balance-amount">؋ <span id="balance">0</span></div>
@@ -182,8 +182,8 @@
       <h3 style="text-align:right; font-size:15px; margin-bottom:10px;">فرصت‌های درآمد</h3>
       <div id="tasks-list"></div>
 
-      <button data-onclick="openWithdraw()" style="margin-top:20px; background:#111111;">برداشت پول ؋</button>
-      <button data-onclick="openSupport()" style="margin-top:10px; background:#D71212;">پشتیبانی</button>
+      <button data-ui="click-14" style="margin-top:20px; background:#111111;">برداشت پول ؋</button>
+      <button data-ui="click-15" style="margin-top:10px; background:#D71212;">پشتیبانی</button>
 
       <section class="recent-activity">
         <h3 style="text-align:right;font-size:15px;margin:18px 0 8px;">فعالیت اخیر</h3>
@@ -192,23 +192,23 @@
     </div>
   </div>
 
-  <div id="notifications-sheet" class="account-sheet hidden" data-onclick="if(event.target%3D%3D%3Dthis)closeNotifications()">
+  <div id="notifications-sheet" class="account-sheet hidden" data-ui="click-16">
     <div class="account-panel" role="dialog" aria-modal="true" aria-labelledby="notifications-title">
       <div class="account-head">
         <div style="flex:1"><h3 id="notifications-title" style="margin:0">اعلان‌ها</h3></div>
-        <button type="button" data-onclick="markAllNotificationsRead()" style="width:auto;background:#f5f5f5;color:#111;padding:8px 10px">خواندن همه</button>
-        <button type="button" data-onclick="closeNotifications()" style="width:auto;background:#f2f2f2;color:#111;padding:8px 12px">×</button>
+        <button type="button" data-ui="click-17" style="width:auto;background:#f5f5f5;color:#111;padding:8px 10px">خواندن همه</button>
+        <button type="button" data-ui="click-18" style="width:auto;background:#f2f2f2;color:#111;padding:8px 12px">×</button>
       </div>
       <div id="notifications-list"><div class="activity-empty">در حال دریافت...</div></div>
     </div>
   </div>
 
-  <div id="account-sheet" class="account-sheet hidden" data-onclick="if(event.target%3D%3D%3Dthis)closeAccount()">
+  <div id="account-sheet" class="account-sheet hidden" data-ui="click-19">
     <div class="account-panel" role="dialog" aria-modal="true" aria-labelledby="account-title">
       <div class="account-head">
         <div id="account-photo" class="account-photo">ک</div>
         <div style="flex:1"><h3 id="account-title" style="margin:0 0 4px">حساب من</h3><div id="account-phone" class="hint"></div></div>
-        <button type="button" data-onclick="closeAccount()" style="width:auto;background:#f2f2f2;color:#111;padding:8px 12px">×</button>
+        <button type="button" data-ui="click-20" style="width:auto;background:#f2f2f2;color:#111;padding:8px 12px">×</button>
       </div>
       <div class="input-group"><label>نام و تخلص</label><input id="account-name" type="text" maxlength="120"></div>
       <div class="input-group"><label>زبان</label><select id="account-language"><option value="fa-AF">دری / فارسی</option><option value="ps-AF">پښتو</option><option value="en">English</option></select><div id="language-note" class="hint" style="margin-top:6px">زبان انتخابی پس از ذخیره روی رابط برنامه اعمال می‌شود.</div></div>
@@ -217,10 +217,10 @@
       <div class="account-row"><small>امنیت حساب</small><span>تغییر/بازیابی رمز پس از اتصال OTP واقعی فعال می‌شود.</span></div>
       <div class="account-row"><small>احراز هویت برای برداشت</small><strong id="identity-status">در حال دریافت...</strong><a id="identity-open-btn" href="/verify.html" style="display:block;margin-top:8px;background:#111;color:#fff;text-align:center;padding:12px;border-radius:8px;text-decoration:none">احراز هویت</a></div>
       <div class="account-actions">
-        <button type="button" data-onclick="saveAccountSettings()">ذخیره تنظیمات</button>
-        <button type="button" data-onclick="chooseProfilePhoto()" style="background:#111">تغییر عکس</button>
+        <button type="button" data-ui="click-21">ذخیره تنظیمات</button>
+        <button type="button" data-ui="click-22" style="background:#111">تغییر عکس</button>
       </div>
-      <button type="button" data-onclick="logout()" style="margin-top:10px;background:#f5f5f5;color:#D71212">خروج از حساب</button>
+      <button type="button" data-ui="click-23" style="margin-top:10px;background:#f5f5f5;color:#D71212">خروج از حساب</button>
     </div>
   </div>
 
@@ -280,8 +280,8 @@
         <textarea id="support-message" maxlength="5000" rows="5" placeholder="مشکل یا سؤال خود را بنویسید" style="width:100%;padding:12px;border:1px solid #ccc;border-radius:8px;font-size:14px;resize:vertical;"></textarea>
       </div>
       <div id="support-err" class="err hidden"></div>
-      <button data-onclick="submitSupportTicket()">ثبت درخواست</button>
-      <button data-onclick="closeSupport()" style="background:#666;margin-top:10px;">بستن</button>
+      <button data-ui="click-24">ثبت درخواست</button>
+      <button data-ui="click-25" style="background:#666;margin-top:10px;">بستن</button>
       <div id="support-history" style="margin-top:20px;"></div>
     </div>
   </div>
@@ -307,18 +307,18 @@
         <input type="text" id="wd-account" placeholder="شماره حساب یا نام صرافی">
       </div>
       <div id="wd-err" class="err hidden"></div>
-      <button data-onclick="submitWithdraw()">ثبت درخواست</button>
-      <button data-onclick="closeWithdraw()" style="background:#666; margin-top:10px;">بستن صفحه</button>
+      <button data-ui="click-26">ثبت درخواست</button>
+      <button data-ui="click-27" style="background:#666; margin-top:10px;">بستن صفحه</button>
       <div id="wd-history" style="margin-top:20px;"></div>
     </div>
   </div>
 
   <nav class="mobile-bottom-nav" aria-label="ناوبری اصلی">
-    <button type="button" class="active" data-onclick="window.scrollTo(%7Btop%3A0%2Cbehavior%3A'smooth'%7D)"><span class="nav-icon">⌂</span>خانه</button>
-    <button type="button" data-onclick="document.getElementById('tasks-list')%3F.scrollIntoView(%7Bbehavior%3A'smooth'%7D)"><span class="nav-icon">▣</span>فرصت‌ها</button>
-    <button type="button" data-onclick="openWithdraw()"><span class="nav-icon">؋</span>برداشت</button>
-    <button type="button" data-onclick="openSupport()"><span class="nav-icon">◉</span>پشتیبانی</button>
-    <button type="button" data-onclick="openAccount()"><span class="nav-icon">●</span>حساب من</button>
+    <button type="button" class="active" data-ui="click-28"><span class="nav-icon">⌂</span>خانه</button>
+    <button type="button" data-ui="click-29"><span class="nav-icon">▣</span>فرصت‌ها</button>
+    <button type="button" data-ui="click-30"><span class="nav-icon">؋</span>برداشت</button>
+    <button type="button" data-ui="click-31"><span class="nav-icon">◉</span>پشتیبانی</button>
+    <button type="button" data-ui="click-32"><span class="nav-icon">●</span>حساب من</button>
   </nav>
 
   <footer class="legal-footer">

@@ -1801,6 +1801,13 @@ app.get(
         const tx =
           txResult.rows[0];
 
+        if (tx) {
+          const amount = Number(tx.amount_minor);
+          if (!Number.isSafeInteger(amount) || amount <= 0) {
+            throw new Error('Invalid reversal transaction amount');
+          }
+        }
+
         if (tx && tx.status !== 'REVERSED') {
           const amount =
             Number(tx.amount_minor);

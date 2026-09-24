@@ -47,7 +47,7 @@ const UI_ACTIONS=new Map([
 ['click-27',()=>closeWithdraw()],
 ['click-28',()=>window.scrollTo({top:0,behavior:'smooth'})],
 ['click-29',()=>document.getElementById('tasks-list')?.scrollIntoView({behavior:'smooth'})],
-['click-30',()=>openWithdraw()],
+['click-30',()=>{window.location.href='/wallet.html'}],
 ['click-31',()=>openSupport()],
 ['click-32',()=>openAccount()]
 ]);

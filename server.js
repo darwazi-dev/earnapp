@@ -815,6 +815,10 @@ app.post('/api/auth/password/forgot',
     const phone = normalizePhone(req.body?.phone);
     const generic = { ok: true, message: 'اگر حسابی با این شماره وجود داشته باشد، کد بازیابی ارسال می‌شود.' };
     if (!phone) return res.status(400).json({ error: 'شماره معتبر وارد کنید' });
+    // Respond identically for known and unknown numbers when SMS is unavailable.
+    if (!vonageConfigured()) {
+      return res.status(503).json({ error: 'سرویس بازیابی رمز هنوز فعال نشده است' });
+    }
 
     try {
       const userResult = await pool.query('SELECT id, phone FROM users WHERE phone = $1 LIMIT 1', [phone]);

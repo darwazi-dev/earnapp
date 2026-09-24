@@ -18,6 +18,9 @@ function showView(name) {
 
   const target = el(`view-${name}`);
   if (target) target.classList.remove('hidden');
+
+  const authMode = name === 'login' || name === 'register';
+  document.body.classList.toggle('auth-mode', authMode);
 }
 
 function toast(msg) {

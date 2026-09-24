@@ -14,8 +14,9 @@ button{margin-top:16px;background:#12463d;color:#fff;border:0;font-weight:700}.b
 </head>
 <body><main><div class="card">
 <h2>احراز هویت برای برداشت</h2>
-<p class="hint">برای تست فعلاً از تصویر غیرحساس/آزمایشی استفاده کنید. پس از ارسال، درخواست توسط ادمین بررسی می‌شود.</p>
+<p class="hint">نام واردشده باید دقیقاً با نام حساب کاریاب و مدرک هویتی یکسان باشد. تصویر مدرک و سلفی نیز توسط ادمین بررسی می‌شود.</p>
 <div id="status" class="hint">در حال دریافت وضعیت...</div>
+<label>نام کامل مطابق مدرک هویتی</label><input id="documentName" maxlength="120" autocomplete="name" placeholder="دقیقاً مطابق تذکره / پاسپورت">
 <label>نوع مدرک</label><select id="type"><option value="NATIONAL_ID">تذکره / مدرک ملی</option><option value="PASSPORT">پاسپورت</option><option value="OTHER">مدرک دیگر</option></select>
 <label>شماره مدرک</label><input id="number" maxlength="80" autocomplete="off">
 <label>تصویر مدرک</label><input id="doc" type="file" accept="image/jpeg,image/png,image/webp">

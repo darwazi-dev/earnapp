@@ -16,7 +16,8 @@
     .section{margin-top:20px}.section h2{font-size:15px;margin:0 0 10px}.row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 2px;border-bottom:1px solid #eee;font-size:12px}.row-main{min-width:0}.row-main strong{display:block;font-size:13px}.meta{color:var(--muted);font-size:10px;margin-top:4px}.amount{font-weight:700;white-space:nowrap}
     .empty,.error{padding:18px;text-align:center;border:1px dashed #ddd;border-radius:12px;color:var(--muted);font-size:12px}.error{color:#a00;border-color:#ecc}
     .note{background:#fafafa;border:1px solid var(--border);border-radius:12px;padding:12px;font-size:11px;line-height:1.8;color:#555;margin-top:14px}
-    .refresh{width:100%;border:0;border-radius:12px;background:#111;color:#fff;padding:12px;font-weight:700;margin-top:14px;cursor:pointer}
+    .refresh{width:100%;border:0;border-radius:12px;background:#111;color:#fff;padding:12px;font-weight:700;margin-top:10px;cursor:pointer}
+    .withdraw-action{display:block;width:100%;border:0;border-radius:12px;background:var(--primary);color:#fff;padding:13px;text-align:center;font-weight:700;margin-top:14px;text-decoration:none}
     .bottom{position:fixed;left:50%;transform:translateX(-50%);bottom:10px;width:min(calc(100% - 24px),536px);display:grid;grid-template-columns:1fr 1fr;background:#fff;border:1px solid var(--border);border-radius:20px;padding:7px;box-shadow:0 8px 28px rgba(0,0,0,.13)}
     .bottom a{text-decoration:none;text-align:center;padding:9px;border-radius:14px;color:#333;font-size:12px}.bottom a.active{background:#fdecec;color:var(--primary);font-weight:700}
     @media(max-width:380px){.grid{grid-template-columns:1fr}.metric{padding:10px}}
@@ -32,11 +33,12 @@
       <div class="metric"><span>کل برداشت</span><strong>؋ <span id="lifetime-withdrawals">—</span></strong></div>
     </section>
     <div class="note">درآمد «در انتظار تأیید» قابل برداشت نیست. پس از تأیید، مبلغ به موجودی قابل برداشت منتقل می‌شود. حداقل برداشت فعلی: <strong>؋ <span id="minimum">—</span></strong>.</div>
+    <a class="withdraw-action" href="/?withdraw=1">درخواست برداشت</a>
     <button id="refresh" class="refresh" type="button">به‌روزرسانی کیف پول</button>
     <section class="section"><h2>تاریخچه مالی</h2><div id="ledger"><div class="empty">در حال دریافت...</div></div></section>
     <section class="section"><h2>درخواست‌های برداشت</h2><div id="withdrawals"><div class="empty">در حال دریافت...</div></div></section>
   </main>
   <nav class="bottom"><a href="/">⌂ خانه</a><a class="active" href="/wallet.html">؋ کیف پول</a></nav>
-  <script src="/wallet.js"></script>
+  <script src="/wallet.js?v=20260924-2"></script>
 </body>
 </html>

@@ -107,6 +107,18 @@
       .mobile-bottom-nav button.active{background:#fdecec;color:#D71212}
     }
 
+    body.auth-mode .menu-toggle,
+    body.auth-mode #profile-avatar,
+    body.auth-mode .mobile-bottom-nav,
+    body.auth-mode .legal-footer { display:none !important; }
+    body.auth-mode { padding-bottom:0; background:#fff; }
+    @media(max-width:767px){
+      body.auth-mode .container{padding-top:54px;min-height:100vh}
+    }
+    .auth-trust{margin:22px auto 0;max-width:360px;padding:13px 14px;border:1px solid #f0e4e4;border-radius:14px;background:#fffafa;text-align:center;line-height:1.65}
+    .auth-trust strong{display:block;color:#222;font-size:12px;margin-bottom:5px}
+    .auth-trust span{display:block;color:#777;font-size:11px}
+
     #identity-modal.identity-modal-css { display:none; }
     #identity-modal.identity-modal-css:target { display:flex; }
   </style>
@@ -154,9 +166,10 @@
     <!-- فرم ثبت نام -->
     <div id="view-register" class="hidden">
       <h2>ثبت‌نام حساب جدید</h2>
-      <div style="text-align:center;margin:-5px 0 18px;color:#555;font-size:13px;line-height:1.8">
-        <strong style="color:#D71212">Complete Tasks. Earn Rewards.</strong><br>
-        تسک‌ها را تکمیل کنید، پاداش بگیرید.
+      <div class="auth-trust">
+        <strong>Complete real online tasks. Earn rewards. Withdraw when eligible.</strong>
+        <span>تسک‌های آنلاین واقعی را تکمیل کنید، پاداش بگیرید و پس از واجد شرایط شدن برداشت کنید.</span>
+        <span lang="ps">ریښتینې آنلاین دندې بشپړې کړئ، انعامونه ترلاسه کړئ او د شرایطو له پوره کېدو وروسته پیسې وباسئ.</span>
       </div>
       <div class="input-group">
         <label>نام و تخلص</label>
@@ -350,6 +363,6 @@
   </footer>
 
   <script src="ui.js?v=20260924-1"></script>
-  <script src="app.js?v=20260924-5"></script>
+  <script src="app.js?v=20260924-6"></script>
 </body>
 </html>

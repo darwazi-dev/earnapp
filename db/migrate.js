@@ -80,6 +80,10 @@ async function migrate() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      ALTER TABLE identity_verifications
+        ADD COLUMN IF NOT EXISTS metadata JSONB
+        NOT NULL DEFAULT '{}'::jsonb;
+
       CREATE UNIQUE INDEX IF NOT EXISTS idx_identity_one_active_request
         ON identity_verifications(user_id)
         WHERE status = 'UNDER_REVIEW';

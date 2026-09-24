@@ -1331,6 +1331,25 @@ app.get(
     }
 
     try {
+      const blockingFraud = await pool.query(
+        `
+        SELECT 1
+        FROM fraud_flags
+        WHERE
+          user_id = $1
+          AND severity IN ('HIGH', 'CRITICAL')
+          AND status IN ('OPEN', 'UNDER_REVIEW')
+        LIMIT 1
+        `,
+        [req.userId]
+      );
+
+      if (blockingFraud.rows.length) {
+        return res.status(403).json({
+          error: 'فرصت‌های درآمد تا پایان بررسی امنیتی حساب موقتاً متوقف است'
+        });
+      }
+
       const userResult =
         await pool.query(
           `

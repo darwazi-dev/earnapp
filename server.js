@@ -3140,84 +3140,100 @@ app.get(
 
           (
             SELECT COUNT(*)
-            FROM withdrawals
-            WHERE COALESCE(is_test, FALSE) = FALSE
-              AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
-              AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
-              AND status IN ('REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING')
+            FROM withdrawals w
+            JOIN users u ON u.id = w.user_id
+            WHERE u.status = 'ACTIVE'
+              AND COALESCE(w.is_test, FALSE) = FALSE
+              AND COALESCE(w.environment, 'PRODUCTION') = 'PRODUCTION'
+              AND COALESCE(w.payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
+              AND w.withdrawal_id !~* '^TEST([[:space:]_-]|$)'
+              AND w.status IN ('REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING')
           ) AS pending_count,
 
           (
-            SELECT COALESCE(SUM(amount_minor), 0)
-            FROM withdrawals
-            WHERE COALESCE(is_test, FALSE) = FALSE
-              AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
-              AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
-              AND status IN ('REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING')
+            SELECT COALESCE(SUM(w.amount_minor), 0)
+            FROM withdrawals w
+            JOIN users u ON u.id = w.user_id
+            WHERE u.status = 'ACTIVE'
+              AND COALESCE(w.is_test, FALSE) = FALSE
+              AND COALESCE(w.environment, 'PRODUCTION') = 'PRODUCTION'
+              AND COALESCE(w.payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
+              AND w.withdrawal_id !~* '^TEST([[:space:]_-]|$)'
+              AND w.status IN ('REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING')
           ) AS pending_amount,
 
           (
-            SELECT COALESCE(SUM(amount_minor), 0)
-            FROM withdrawals
-            WHERE COALESCE(is_test, FALSE) = FALSE
-              AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
-              AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
-              AND status = 'PAID'
+            SELECT COALESCE(SUM(w.amount_minor), 0)
+            FROM withdrawals w
+            JOIN users u ON u.id = w.user_id
+            WHERE u.status = 'ACTIVE'
+              AND COALESCE(w.is_test, FALSE) = FALSE
+              AND COALESCE(w.environment, 'PRODUCTION') = 'PRODUCTION'
+              AND COALESCE(w.payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
+              AND w.withdrawal_id !~* '^TEST([[:space:]_-]|$)'
+              AND w.status = 'PAID'
           ) AS paid_out,
 
           (
-            SELECT COALESCE(
-              SUM(
-                CASE
-                  WHEN COALESCE(metadata->>'amount_usd', '') ~ '^[0-9]+([.][0-9]+)?$'
-                  THEN (metadata->>'amount_usd')::numeric
-                  ELSE 0
-                END
-              ),
-              0
-            )
-            FROM transactions
-            WHERE type = 'EARNING'
-              AND status <> 'REVERSED'
-              AND metadata->>'provider' = 'CPX'
+            SELECT COALESCE(SUM(
+              CASE
+                WHEN COALESCE(t.metadata->>'amount_usd', '') ~ '^[0-9]+([.][0-9]+)?$'
+                THEN (t.metadata->>'amount_usd')::numeric
+                ELSE 0
+              END
+            ), 0)
+            FROM transactions t
+            JOIN users u ON u.id = t.user_id
+            WHERE u.status = 'ACTIVE'
+              AND t.type = 'EARNING'
+              AND t.status <> 'REVERSED'
+              AND t.metadata->>'provider' = 'CPX'
+              AND COALESCE(t.metadata->>'environment', 'PRODUCTION') = 'PRODUCTION'
+              AND COALESCE(t.metadata->>'is_test', 'false') <> 'true'
           ) AS provider_revenue_usd,
 
           (
-            SELECT COALESCE(SUM(amount_minor), 0)
-            FROM transactions
-            WHERE type = 'EARNING'
-              AND status <> 'REVERSED'
-              AND metadata->>'provider' = 'CPX'
+            SELECT COALESCE(SUM(t.amount_minor), 0)
+            FROM transactions t
+            JOIN users u ON u.id = t.user_id
+            WHERE u.status = 'ACTIVE'
+              AND t.type = 'EARNING'
+              AND t.status <> 'REVERSED'
+              AND t.metadata->>'provider' = 'CPX'
+              AND COALESCE(t.metadata->>'environment', 'PRODUCTION') = 'PRODUCTION'
+              AND COALESCE(t.metadata->>'is_test', 'false') <> 'true'
           ) AS user_earnings,
 
           (
             SELECT COUNT(*)
-            FROM transactions
-            WHERE type = 'EARNING'
-              AND status <> 'REVERSED'
-              AND metadata->>'provider' = 'CPX'
+            FROM transactions t
+            JOIN users u ON u.id = t.user_id
+            WHERE u.status = 'ACTIVE'
+              AND t.type = 'EARNING'
+              AND t.status <> 'REVERSED'
+              AND t.metadata->>'provider' = 'CPX'
+              AND COALESCE(t.metadata->>'environment', 'PRODUCTION') = 'PRODUCTION'
+              AND COALESCE(t.metadata->>'is_test', 'false') <> 'true'
           ) AS completed_earnings
         `
       );
 
       const row = result.rows[0];
+      const settings = await getRuntimeSettings();
+      const providerRevenueUsd = Number(row.provider_revenue_usd || 0);
+      const userEarningsAfn = minorToAfn(row.user_earnings);
+      const afnPerUsd = Number(settings.afnPerUsd || DEFAULT_AFN_PER_USD);
 
       res.json({
+        scope: 'ACTIVE_PRODUCTION',
         totalUsers: Number(row.total_users || 0),
         totalBalanceHeld: minorToAfn(row.total_balance),
         pendingCount: Number(row.pending_count || 0),
         pendingAmount: minorToAfn(row.pending_amount),
         paidOut: minorToAfn(row.paid_out),
-        providerRevenueUsd: Number(row.provider_revenue_usd || 0),
-        userEarnings: minorToAfn(row.user_earnings),
-        platformShareUsd: Math.max(
-          0,
-          Number(row.provider_revenue_usd || 0) -
-          (
-            minorToAfn(row.user_earnings) /
-            Number((await getRuntimeSettings()).afnPerUsd || DEFAULT_AFN_PER_USD)
-          )
-        ),
+        providerRevenueUsd,
+        userEarnings: userEarningsAfn,
+        platformShareUsd: Math.max(0, providerRevenueUsd - (userEarningsAfn / afnPerUsd)),
         completedEarnings: Number(row.completed_earnings || 0)
       });
     } catch (error) {

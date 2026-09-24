@@ -62,6 +62,19 @@ const sensitiveLimiter = rateLimit({
   }
 });
 
+// Earning-provider links are intentionally stricter than ordinary API reads.
+// This limits automated refresh/open loops without punishing normal browsing.
+const earningAccessLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 12,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: req => String(req.userId || req.ip || 'anonymous'),
+  message: {
+    error: 'تعداد تلاش برای بازکردن فرصت‌های درآمد زیاد است. چند دقیقه بعد دوباره تلاش کنید.'
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 
 // =====================================================
@@ -1632,6 +1645,7 @@ app.post(
 app.get(
   '/api/cpx/offerwall-link',
   authRequired,
+  earningAccessLimiter,
   async (req, res) => {
     if (!CPX_SECURE_HASH) {
       return res.status(503).json({

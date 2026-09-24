@@ -2188,13 +2188,18 @@ app.get('/api/notifications', authRequired, async (req, res) => {
 });
 
 app.post('/api/notifications/:id/read', authRequired, async (req, res) => {
+  const notificationId = String(req.params.id || '').trim();
+  if (!/^\d+$/.test(notificationId)) {
+    return res.status(400).json({ error: 'شناسه اعلان معتبر نیست' });
+  }
+
   try {
     const result = await pool.query(
       `UPDATE notifications
        SET read_at = COALESCE(read_at, NOW())
        WHERE id = $1 AND user_id = $2
        RETURNING id, read_at`,
-      [req.params.id, req.userId]
+      [notificationId, req.userId]
     );
     if (!result.rows.length) return res.status(404).json({ error: 'اعلان یافت نشد' });
     res.json({ ok: true });

@@ -968,7 +968,7 @@ async function loadIdentityVerifications(){
         ? '<div class="actions"><button class="btn-approve identity-action" data-action="verify" data-id="'+Number(v.id)+'">تأیید</button><button class="btn-reject identity-action" data-action="reject" data-id="'+Number(v.id)+'">رد</button></div>'
         : '—';
       return '<tr>'+
-        '<td>'+escapeHtml(v.user_name)+'</td>'+
+        '<td>'+escapeHtml(v.user_name)+'<div class="ref">نام مدرک: '+escapeHtml(v.document_name || '—')+'</div><div class="ref">'+(v.name_match?'✓ نام مطابق است':'⚠ تطبیق نام تایید نشده')+'</div></td>'+
         '<td>'+escapeHtml(v.document_type)+'<div class="ref">••••'+escapeHtml(v.document_number_last4 || '')+'</div></td>'+
         '<td>'+(v.has_document_image?'<button class="btn-primary identity-image" data-kind="document" data-id="'+Number(v.id)+'">مشاهده مدرک</button>':'حذف شده')+'</td>'+
         '<td>'+(v.has_selfie_image?'<button class="btn-primary identity-image" data-kind="selfie" data-id="'+Number(v.id)+'">مشاهده سلفی</button>':'حذف شده')+'</td>'+
@@ -987,7 +987,7 @@ async function reviewIdentity(id,decision){
     if(entered===null) return;
     reason=entered.trim();
     if(reason.length<3) return showNotice('دلیل رد را واضح بنویسید.','error');
-  }else if(!confirm('مدرک و سلفی را بررسی کرده‌اید و هویت این کاربر تأیید شود؟')){
+  }else if(!confirm('نام حساب و نام مدرک یکسان است، تصویر مدرک و سلفی را بررسی کرده‌اید و هویت این کاربر تأیید شود؟')){
     return;
   }
   try{

@@ -26,11 +26,16 @@
 <body>
   <main class="shell">
     <div class="top"><h1>کیف پول</h1><a class="back" href="/">بازگشت به خانه</a></div>
-    <section class="hero"><small>موجودی قابل برداشت</small><strong>؋ <span id="available">—</span></strong></section>
+    <section class="hero"><small>موجودی کل</small><strong>؋ <span id="total-balance">—</span></strong><div style="font-size:11px;opacity:.85;margin-top:8px">قابل برداشت + در انتظار تأیید</div></section>
     <section class="grid" aria-label="خلاصه کیف پول">
+      <div class="metric"><span>قابل برداشت</span><strong>؋ <span id="available">—</span></strong></div>
       <div class="metric"><span>در انتظار تأیید</span><strong>؋ <span id="pending">—</span></strong></div>
       <div class="metric"><span>کل درآمد تأییدشده</span><strong>؋ <span id="lifetime-earnings">—</span></strong></div>
+    </section>
+    <section class="grid" aria-label="آمار مالی">
       <div class="metric"><span>کل برداشت</span><strong>؋ <span id="lifetime-withdrawals">—</span></strong></div>
+      <div class="metric"><span>حداقل برداشت</span><strong>؋ <span id="minimum-card">—</span></strong></div>
+      <div class="metric"><span>ارز</span><strong>AFN</strong></div>
     </section>
     <div class="note">درآمد «در انتظار تأیید» قابل برداشت نیست. پس از تأیید، مبلغ به موجودی قابل برداشت منتقل می‌شود. حداقل برداشت فعلی: <strong>؋ <span id="minimum">—</span></strong>.</div>
     <a class="withdraw-action" href="/?withdraw=1">درخواست برداشت</a>
@@ -39,6 +44,6 @@
     <section class="section"><h2>درخواست‌های برداشت</h2><div id="withdrawals"><div class="empty">در حال دریافت...</div></div></section>
   </main>
   <nav class="bottom"><a href="/">⌂ خانه</a><a class="active" href="/wallet.html">؋ کیف پول</a></nav>
-  <script src="/wallet.js?v=20260924-2"></script>
+  <script src="/wallet.js?v=20260924-3"></script>
 </body>
 </html>

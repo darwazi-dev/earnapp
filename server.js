@@ -379,6 +379,36 @@ app.post('/api/profile/settings', authRequired, sensitiveLimiter, async (req, re
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+
+      const identityLock = await client.query(
+        `SELECT u.name AS current_name, iv.status AS identity_status
+         FROM users u
+         LEFT JOIN LATERAL (
+           SELECT status
+           FROM identity_verifications
+           WHERE user_id = u.id
+           ORDER BY submitted_at DESC, id DESC
+           LIMIT 1
+         ) iv ON TRUE
+         WHERE u.id = $1
+         FOR UPDATE OF u`,
+        [req.userId]
+      );
+
+      const currentName = String(identityLock.rows[0]?.current_name || '').replace(/\s+/g, ' ').trim();
+      const normalizedCurrentName = currentName.normalize('NFKC').toLocaleLowerCase().replace(/[\u200c\u200d]/g, '').replace(/[^\p{L}\p{M}]/gu, '');
+      const normalizedNewName = name.normalize('NFKC').toLocaleLowerCase().replace(/[\u200c\u200d]/g, '').replace(/[^\p{L}\p{M}]/gu, '');
+
+      if (
+        identityLock.rows[0]?.identity_status === 'VERIFIED' &&
+        normalizedCurrentName !== normalizedNewName
+      ) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'پس از تایید هویت، نام حساب بدون احراز هویت مجدد قابل تغییر نیست'
+        });
+      }
+
       await client.query(
         `UPDATE users SET name = $2, updated_at = NOW() WHERE id = $1`,
         [req.userId, name]
@@ -2665,17 +2695,31 @@ app.post(
       }
 
       const identityResult = await client.query(
-        `SELECT status
-         FROM identity_verifications
-         WHERE user_id = $1
-         ORDER BY submitted_at DESC, id DESC
+        `SELECT iv.status,
+                iv.metadata->>'document_name' AS document_name,
+                COALESCE((iv.metadata->>'name_match')::boolean, FALSE) AS name_match,
+                u.name AS account_name
+         FROM identity_verifications iv
+         JOIN users u ON u.id = iv.user_id
+         WHERE iv.user_id = $1
+         ORDER BY iv.submitted_at DESC, iv.id DESC
          LIMIT 1`,
         [req.userId]
       );
 
-      if (identityResult.rows[0]?.status !== 'VERIFIED') {
+      const identity = identityResult.rows[0];
+      const normalizeIdentityName = value => String(value || '')
+        .normalize('NFKC')
+        .toLocaleLowerCase()
+        .replace(/[\u200c\u200d]/g, '')
+        .replace(/[^\p{L}\p{M}]/gu, '');
+      const verifiedNameMatch =
+        identity?.name_match === true &&
+        normalizeIdentityName(identity?.account_name) === normalizeIdentityName(identity?.document_name);
+
+      if (identity?.status !== 'VERIFIED' || !verifiedNameMatch) {
         await client.query('ROLLBACK');
-        const identityStatus = identityResult.rows[0]?.status || 'UNVERIFIED';
+        const identityStatus = identity?.status || 'UNVERIFIED';
         return res.status(403).json({
           error: identityStatus === 'UNDER_REVIEW'
             ? 'احراز هویت شما هنوز در حال بررسی است'

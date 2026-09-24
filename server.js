@@ -2404,6 +2404,29 @@ app.post(
       const settings =
         await getRuntimeSettings(client);
 
+      const existingWithdrawal = await client.query(
+        `
+        SELECT withdrawal_id, status
+        FROM withdrawals
+        WHERE
+          user_id = $1
+          AND status IN ('REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING')
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [req.userId]
+      );
+
+      if (existingWithdrawal.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'یک درخواست برداشت فعال دارید؛ تا نهایی‌شدن آن درخواست جدید ثبت نمی‌شود',
+          code: 'ACTIVE_WITHDRAWAL_EXISTS',
+          withdrawalId: existingWithdrawal.rows[0].withdrawal_id,
+          status: existingWithdrawal.rows[0].status
+        });
+      }
+
       const identityResult = await client.query(
         `SELECT status
          FROM identity_verifications

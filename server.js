@@ -2988,6 +2988,8 @@ app.get(
               SELECT COUNT(*)
               FROM withdrawals
               WHERE COALESCE(is_test, FALSE) = FALSE
+                AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
+                AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
                 AND status IN (
                 'REQUESTED',
                 'UNDER_REVIEW',
@@ -3003,6 +3005,8 @@ app.get(
               )
               FROM withdrawals
               WHERE COALESCE(is_test, FALSE) = FALSE
+                AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
+                AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
                 AND status IN (
                 'REQUESTED',
                 'UNDER_REVIEW',
@@ -3018,6 +3022,8 @@ app.get(
               )
               FROM withdrawals
               WHERE COALESCE(is_test, FALSE) = FALSE
+                AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
+                AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
                 AND status = 'PAID'
             ) AS paid_out
           `
@@ -3728,8 +3734,16 @@ app.get(
             w.account_details,
             w.payment_reference,
             w.created_at,
-            COALESCE(w.is_test, FALSE) AS is_test,
-            COALESCE(w.environment, 'PRODUCTION') AS environment,
+            (
+              COALESCE(w.is_test, FALSE)
+              OR COALESCE(w.payment_reference, '') ~* '^TEST([[:space:]_-]|$)'
+              OR w.withdrawal_id ~* '^TEST([[:space:]_-]|$)'
+            ) AS is_test,
+            CASE WHEN (
+              COALESCE(w.is_test, FALSE)
+              OR COALESCE(w.payment_reference, '') ~* '^TEST([[:space:]_-]|$)'
+              OR w.withdrawal_id ~* '^TEST([[:space:]_-]|$)'
+            ) THEN 'TEST' ELSE COALESCE(w.environment, 'PRODUCTION') END AS environment,
             u.name AS user_name,
             u.phone AS user_phone,
             wm.name AS method

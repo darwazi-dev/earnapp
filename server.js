@@ -4074,7 +4074,14 @@ app.post(
       const withdrawal = result.rows[0];
 
       const processingDetails = await client.query(
-        `SELECT user_id, amount_minor, method FROM withdrawals WHERE id = $1 LIMIT 1`,
+        `SELECT
+           w.user_id,
+           w.amount_minor,
+           wm.code AS method
+         FROM withdrawals w
+         LEFT JOIN withdrawal_methods wm ON wm.id = w.method_id
+         WHERE w.id = $1
+         LIMIT 1`,
         [withdrawal.id]
       );
 

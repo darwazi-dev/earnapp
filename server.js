@@ -1449,7 +1449,13 @@ app.get(
       !transId ||
       !userId ||
       !suppliedHash ||
-      !['1', '2'].includes(status)
+      !['1', '2'].includes(status) ||
+      !/^\d+$/.test(userId) ||
+      transId.length > 200 ||
+      userId.length > 32 ||
+      offerId.length > 200 ||
+      suppliedHash.length !== 32 ||
+      !/^[a-fA-F0-9]{32}$/.test(suppliedHash)
     ) {
       return res
         .status(400)

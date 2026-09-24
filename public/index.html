@@ -115,9 +115,14 @@
     @media(max-width:767px){
       body.auth-mode .container{padding-top:54px;min-height:100vh}
     }
-    .auth-trust{margin:22px auto 0;max-width:360px;padding:13px 14px;border:1px solid #f0e4e4;border-radius:14px;background:#fffafa;text-align:center;line-height:1.65}
-    .auth-trust strong{display:block;color:#222;font-size:12px;margin-bottom:5px}
-    .auth-trust span{display:block;color:#777;font-size:11px}
+    .auth-welcome{text-align:center;margin:0 0 4px;color:#777;font-size:14px;font-weight:600}
+    #view-register>h2{margin-top:4px;margin-bottom:16px;font-size:25px;letter-spacing:-.3px}
+    .auth-trust{margin:0 auto 20px;max-width:100%;padding:11px 12px;border:1px solid #f0e4e4;border-radius:14px;background:#fffafa;text-align:center;line-height:1.55;overflow:hidden}
+    .auth-trust-line{display:flex;align-items:center;justify-content:center;gap:7px;white-space:nowrap;font-size:10px;color:#666}
+    .auth-trust-line span{display:inline}
+    .auth-trust-line .en{direction:ltr;font-weight:600;color:#333}
+    .auth-trust-sep{color:#D71212;font-weight:700}
+    @media(max-width:500px){.auth-trust-line{font-size:8.5px;gap:4px;letter-spacing:-.1px}.auth-trust{padding:10px 6px}}
 
     #identity-modal.identity-modal-css { display:none; }
     #identity-modal.identity-modal-css:target { display:flex; }
@@ -165,11 +170,16 @@
 
     <!-- فرم ثبت نام -->
     <div id="view-register" class="hidden">
+      <div class="auth-welcome">به کاریاب خوش آمدید</div>
       <h2>ثبت‌نام حساب جدید</h2>
-      <div class="auth-trust">
-        <strong>Complete real online tasks. Earn rewards. Withdraw when eligible.</strong>
-        <span>تسک‌های آنلاین واقعی را تکمیل کنید، پاداش بگیرید و پس از واجد شرایط شدن برداشت کنید.</span>
-        <span lang="ps">ریښتینې آنلاین دندې بشپړې کړئ، انعامونه ترلاسه کړئ او د شرایطو له پوره کېدو وروسته پیسې وباسئ.</span>
+      <div class="auth-trust" aria-label="پیام کاریاب">
+        <div class="auth-trust-line">
+          <span>تسک آنلاین را تکمیل کنید، پاداش بگیرید و برداشت کنید.</span>
+          <b class="auth-trust-sep">•</b>
+          <span lang="ps">آنلاین دندې بشپړې کړئ، انعام واخلئ او پیسې وباسئ.</span>
+          <b class="auth-trust-sep">•</b>
+          <span class="en" lang="en">Complete tasks. Earn rewards. Withdraw.</span>
+        </div>
       </div>
       <div class="input-group">
         <label>نام و تخلص</label>

@@ -560,6 +560,31 @@ async function promotePendingEarnings(userId) {
           `مبلغ ؋${(amount / 100).toFixed(2)} از حالت در حال بررسی به موجودی قابل برداشت منتقل شد.`
         ]
       );
+
+      await client.query(
+        `
+        INSERT INTO admin_actions (
+          action_type,
+          entity_type,
+          entity_id,
+          metadata
+        )
+        VALUES (
+          'EARNING_PROMOTED',
+          'TRANSACTION',
+          $1,
+          $2::jsonb
+        )
+        `,
+        [
+          String(transaction.id),
+          JSON.stringify({
+            user_id: String(userId),
+            amount_minor: amount,
+            source: 'SETTLEMENT_VERIFIED_HOLD_COMPLETE'
+          })
+        ]
+      );
     }
 
     const walletUpdate = await client.query(

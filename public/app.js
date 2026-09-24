@@ -1199,7 +1199,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   if (TOKEN) {
-    enterApp();
+    enterApp().then(() => {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('withdraw') === '1') {
+        openWithdraw();
+        history.replaceState({}, '', '/');
+      }
+    });
   } else {
     showView('login');
   }

@@ -1409,10 +1409,19 @@ app.post('/api/register',
       console.error('Registration device signal recording failed:', error.message);
     });
 
+    const networkRisk = await assessNetworkRisk(req);
+    const networkWarning = networkRisk.detected
+      ? {
+          code: 'VPN_OR_PROXY_DETECTED',
+          message: 'VPN یا Proxy شناسایی شد. برای استفاده از فرصت‌های درآمدی آن را خاموش کنید.'
+        }
+      : null;
+
     res.json({
       token,
       name: user.name,
-      balance: 0
+      balance: 0,
+      networkWarning
     });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -1522,13 +1531,22 @@ app.post('/api/login',
       console.error('Device signal recording failed:', error.message);
     });
 
+    const networkRisk = await assessNetworkRisk(req);
+    const networkWarning = networkRisk.detected
+      ? {
+          code: 'VPN_OR_PROXY_DETECTED',
+          message: 'VPN یا Proxy شناسایی شد. برای استفاده از فرصت‌های درآمدی آن را خاموش کنید.'
+        }
+      : null;
+
     res.json({
       token,
       name: user.name,
       balance:
         minorToAfn(
           user.available_balance_minor
-        )
+        ),
+      networkWarning
     });
   } catch (error) {
     console.error(

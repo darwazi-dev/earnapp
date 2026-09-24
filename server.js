@@ -1200,9 +1200,8 @@ app.post('/api/login',
     const user = result.rows[0];
 
     if (!user) {
-      return res.status(400).json({
-        error:
-          'شماره یا رمز عبور اشتباه است'
+      return res.status(404).json({
+        error: 'با این شماره تلفن حسابی وجود ندارد'
       });
     }
 

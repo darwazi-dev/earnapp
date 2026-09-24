@@ -3066,6 +3066,157 @@ app.get(
 );
 
 // =====================================================
+// ADMIN CPX SETTLEMENT REVIEW
+// =====================================================
+
+app.get(
+  '/api/admin/cpx/pending-settlements',
+  adminRequired,
+  async (req, res) => {
+    try {
+      const result = await pool.query(
+        `
+        SELECT
+          t.id,
+          t.transaction_id,
+          t.provider_transaction_id,
+          t.user_id,
+          t.amount_minor,
+          t.status,
+          t.metadata,
+          t.created_at
+        FROM transactions t
+        WHERE t.type = 'EARNING'
+          AND t.status = 'PENDING'
+          AND t.metadata->>'provider' = 'CPX'
+          AND COALESCE(t.metadata->>'settlement_verified', 'false') <> 'true'
+        ORDER BY t.created_at ASC
+        LIMIT 200
+        `
+      );
+
+      res.json({
+        settlements: result.rows.map(row => ({
+          id: row.id,
+          transactionId: row.transaction_id,
+          providerTransactionId: row.provider_transaction_id,
+          userId: row.user_id,
+          amount: minorToAfn(row.amount_minor),
+          publisherAmountUsd: Number(row.metadata?.amount_usd || 0),
+          offerId: row.metadata?.offer_id || '',
+          createdAt: row.created_at
+        }))
+      });
+    } catch (error) {
+      console.error('CPX pending settlements failed:', error);
+      res.status(500).json({ error: 'دریافت تسویه‌های CPX انجام نشد' });
+    }
+  }
+);
+
+app.post(
+  '/api/admin/cpx/settlements/:id/verify',
+  adminRequired,
+  sensitiveLimiter,
+  async (req, res) => {
+    const reference = String(req.body?.reference || '').trim();
+
+    if (!reference || reference.length > 200 || /[\\u0000-\\u001F\\u007F]/.test(reference)) {
+      return res.status(400).json({
+        error: 'مرجع تایید تسویه الزامی و حداکثر ۲۰۰ کاراکتر باشد'
+      });
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `
+        SELECT id, user_id, transaction_id, provider_transaction_id, status, metadata
+        FROM transactions
+        WHERE id = $1
+          AND type = 'EARNING'
+          AND metadata->>'provider' = 'CPX'
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [req.params.id]
+      );
+
+      const transaction = result.rows[0];
+
+      if (!transaction) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'تراکنش CPX یافت نشد' });
+      }
+
+      if (transaction.status !== 'PENDING') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'فقط درآمد Pending قابل تایید تسویه است' });
+      }
+
+      if (transaction.metadata?.settlement_verified === true ||
+          transaction.metadata?.settlement_verified === 'true') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'این تسویه قبلاً تایید شده است' });
+      }
+
+      await client.query(
+        `
+        UPDATE transactions
+        SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
+            updated_at = NOW()
+        WHERE id = $1
+        `,
+        [
+          transaction.id,
+          JSON.stringify({
+            settlement_verified: true,
+            settlement_reference: reference,
+            settlement_verified_at: new Date().toISOString(),
+            settlement_verified_by: 'ADMIN'
+          })
+        ]
+      );
+
+      await client.query(
+        `
+        INSERT INTO admin_actions (action_type, entity_type, entity_id, metadata)
+        VALUES ('CPX_SETTLEMENT_VERIFIED', 'TRANSACTION', $1, $2::jsonb)
+        `,
+        [
+          String(transaction.id),
+          JSON.stringify({
+            transaction_id: transaction.transaction_id,
+            provider_transaction_id: transaction.provider_transaction_id,
+            reference
+          })
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      // Promotion remains subject to the configured earning hold period.
+      const promotion = await promotePendingEarnings(String(transaction.user_id));
+
+      res.json({
+        ok: true,
+        promoted: promotion.promoted,
+        promotedAmount: minorToAfn(promotion.amountMinor)
+      });
+    } catch (error) {
+      try { await client.query('ROLLBACK'); } catch {}
+      console.error('CPX settlement verification failed:', error);
+      res.status(500).json({ error: 'تایید تسویه CPX انجام نشد' });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// =====================================================
 // ADMIN FINANCIAL DIAGNOSTICS
 // =====================================================
 

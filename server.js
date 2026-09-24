@@ -2974,124 +2974,93 @@ app.get(
   adminRequired,
   async (req, res) => {
     try {
-      const result =
-        await pool.query(
-          `
-          SELECT
-            (
-              SELECT COUNT(*)
-              FROM users
-            ) AS total_users,
+      const result = await pool.query(
+        `
+        SELECT
+          (SELECT COUNT(*) FROM users) AS total_users,
 
-            (
-              SELECT COALESCE(
-                SUM(
-                  available_balance_minor +
-                  pending_balance_minor
-                ),
-                0
-              )
-              FROM wallets
-            ) AS total_balance,
+          (
+            SELECT COALESCE(SUM(available_balance_minor + pending_balance_minor), 0)
+            FROM wallets
+          ) AS total_balance,
 
-            (
-              SELECT COUNT(*)
-              FROM withdrawals
-              WHERE COALESCE(is_test, FALSE) = FALSE
-                AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
-                AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
-                AND status IN (
-                'REQUESTED',
-                'UNDER_REVIEW',
-                'APPROVED',
-                'PROCESSING'
-              )
-            ) AS pending_count,
+          (
+            SELECT COUNT(*)
+            FROM withdrawals
+            WHERE COALESCE(is_test, FALSE) = FALSE
+              AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
+              AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
+              AND status IN ('REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING')
+          ) AS pending_count,
 
-            (
-              SELECT COALESCE(
-                SUM(amount_minor),
-                0
-              )
-              FROM withdrawals
-              WHERE COALESCE(is_test, FALSE) = FALSE
-                AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
-                AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
-                AND status IN (
-                'REQUESTED',
-                'UNDER_REVIEW',
-                'APPROVED',
-                'PROCESSING'
-              )
-            ) AS pending_amount,
+          (
+            SELECT COALESCE(SUM(amount_minor), 0)
+            FROM withdrawals
+            WHERE COALESCE(is_test, FALSE) = FALSE
+              AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
+              AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
+              AND status IN ('REQUESTED', 'UNDER_REVIEW', 'APPROVED', 'PROCESSING')
+          ) AS pending_amount,
 
-            (
-              SELECT COALESCE(
-                SUM(amount_minor),
-                0
-              )
-              FROM withdrawals
-              WHERE COALESCE(is_test, FALSE) = FALSE
-                AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
-                AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
-                AND status = 'PAID'
-            ) AS paid_out,
+          (
+            SELECT COALESCE(SUM(amount_minor), 0)
+            FROM withdrawals
+            WHERE COALESCE(is_test, FALSE) = FALSE
+              AND COALESCE(payment_reference, '') !~* '^TEST([[:space:]_-]|$)'
+              AND withdrawal_id !~* '^TEST([[:space:]_-]|$)'
+              AND status = 'PAID'
+          ) AS paid_out,
 
-            (
-              SELECT COALESCE(SUM((metadata->>'amount_usd')::numeric), 0)
-              FROM transactions
-              WHERE type = 'EARNING'
-                AND status <> 'REVERSED'
-                AND metadata->>'provider' = 'CPX'
-                AND COALESCE(metadata->>'amount_usd', '') ~ '^\\d+(\\.\\d+)?
-          `
-        );
+          (
+            SELECT COALESCE(
+              SUM(
+                CASE
+                  WHEN COALESCE(metadata->>'amount_usd', '') ~ '^[0-9]+([.][0-9]+)?$'
+                  THEN (metadata->>'amount_usd')::numeric
+                  ELSE 0
+                END
+              ),
+              0
+            )
+            FROM transactions
+            WHERE type = 'EARNING'
+              AND status <> 'REVERSED'
+              AND metadata->>'provider' = 'CPX'
+          ) AS provider_revenue_usd,
+
+          (
+            SELECT COALESCE(SUM(amount_minor), 0)
+            FROM transactions
+            WHERE type = 'EARNING'
+              AND status <> 'REVERSED'
+              AND metadata->>'provider' = 'CPX'
+          ) AS user_earnings,
+
+          (
+            SELECT COUNT(*)
+            FROM transactions
+            WHERE type = 'EARNING'
+              AND status <> 'REVERSED'
+              AND metadata->>'provider' = 'CPX'
+          ) AS completed_earnings
+        `
+      );
 
       const row = result.rows[0];
 
       res.json({
-        totalUsers:
-          Number(row.total_users || 0),
-
-        totalBalanceHeld:
-          minorToAfn(
-            row.total_balance
-          ),
-
-        pendingCount:
-          Number(row.pending_count || 0),
-
-        pendingAmount:
-          minorToAfn(
-            row.pending_amount
-          ),
-
-        paidOut:
-          minorToAfn(
-            row.paid_out
-          ),
-
-        providerRevenueUsd:
-          Number(row.provider_revenue_usd || 0),
-
-        userEarnings:
-          minorToAfn(
-            row.user_earnings
-          ),
-
-        completedEarnings:
-          Number(row.completed_earnings || 0)
+        totalUsers: Number(row.total_users || 0),
+        totalBalanceHeld: minorToAfn(row.total_balance),
+        pendingCount: Number(row.pending_count || 0),
+        pendingAmount: minorToAfn(row.pending_amount),
+        paidOut: minorToAfn(row.paid_out),
+        providerRevenueUsd: Number(row.provider_revenue_usd || 0),
+        userEarnings: minorToAfn(row.user_earnings),
+        completedEarnings: Number(row.completed_earnings || 0)
       });
     } catch (error) {
-      console.error(
-        'Admin stats failed:',
-        error
-      );
-
-      res.status(500).json({
-        error:
-          'دریافت آمار انجام نشد'
-      });
+      console.error('Admin stats failed:', error);
+      res.status(500).json({ error: 'دریافت آمار انجام نشد' });
     }
   }
 );

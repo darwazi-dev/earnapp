@@ -1285,6 +1285,122 @@ app.post(
 );
 
 // =====================================================
+// ACCOUNT DELETION
+// =====================================================
+
+app.post(
+  '/api/account/delete',
+  authRequired,
+  sensitiveLimiter,
+  async (req, res) => {
+    const password = String(req.body?.password || '');
+    const confirmation = String(req.body?.confirmation || '').trim();
+
+    if (!password || confirmation !== 'DELETE') {
+      return res.status(400).json({
+        error: 'رمز عبور و تایید حذف حساب لازم است'
+      });
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const userResult = await client.query(
+        `SELECT id, password_hash, status
+         FROM users
+         WHERE id = $1
+         LIMIT 1
+         FOR UPDATE`,
+        [req.userId]
+      );
+
+      const user = userResult.rows[0];
+
+      if (!user || user.status !== 'ACTIVE') {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'حساب فعال یافت نشد' });
+      }
+
+      const valid = await bcrypt.compare(password, user.password_hash);
+      if (!valid) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'رمز عبور اشتباه است' });
+      }
+
+      const activeWithdrawal = await client.query(
+        `SELECT 1
+         FROM withdrawals
+         WHERE user_id = $1
+           AND status IN ('REQUESTED','UNDER_REVIEW','APPROVED','PROCESSING')
+         LIMIT 1`,
+        [req.userId]
+      );
+
+      if (activeWithdrawal.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'تا پایان درخواست برداشت فعال، حذف حساب ممکن نیست'
+        });
+      }
+
+      // Financial/provider records are retained for audit integrity.
+      // Personal access is revoked and reusable identifiers are anonymized.
+      const deletedMarker = `deleted-${req.userId}-${Date.now()}`;
+      const revokedHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
+
+      await client.query(
+        `UPDATE users
+         SET name = 'Deleted User',
+             phone = $2,
+             email = NULL,
+             password_hash = $3,
+             status = 'DELETED',
+             updated_at = NOW()
+         WHERE id = $1`,
+        [req.userId, deletedMarker, revokedHash]
+      );
+
+      await client.query(
+        `UPDATE user_profiles
+         SET metadata = COALESCE(metadata, '{}'::jsonb)
+           - 'profile_photo'
+           - 'date_of_birth'
+           - 'address'
+         WHERE user_id = $1`,
+        [req.userId]
+      ).catch(error => {
+        if (error.code !== '42P01') throw error;
+      });
+
+      await client.query(
+        `INSERT INTO admin_actions (
+           action_type, entity_type, entity_id, metadata
+         )
+         VALUES (
+           'USER_SELF_DELETED', 'USER', $1,
+           $2::jsonb
+         )`,
+        [
+          String(req.userId),
+          JSON.stringify({ source: 'SELF_SERVICE', financial_records_retained: true })
+        ]
+      );
+
+      await client.query('COMMIT');
+      res.json({ ok: true });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Account deletion failed:', error);
+      res.status(500).json({ error: 'حذف حساب انجام نشد' });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// =====================================================
 // TASKS
 // =====================================================
 

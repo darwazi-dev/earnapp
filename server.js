@@ -112,6 +112,23 @@ async function ensureRuntimeSchema() {
        ADD COLUMN IF NOT EXISTS metadata JSONB
        NOT NULL DEFAULT '{}'::jsonb`
   );
+
+  await pool.query(
+    `CREATE TABLE IF NOT EXISTS devices (
+       id BIGSERIAL PRIMARY KEY,
+       user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+       device_key VARCHAR(255),
+       ip_address INET,
+       user_agent TEXT,
+       last_seen_at TIMESTAMPTZ,
+       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+     )`
+  );
+
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS idx_devices_device_key
+       ON devices(device_key)`
+  );
 }
 
 // =====================================================
@@ -147,6 +164,61 @@ function md5(value) {
     .createHash('md5')
     .update(String(value))
     .digest('hex');
+}
+
+function requestIp(req) {
+  const forwarded = String(req.headers['x-forwarded-for'] || '')
+    .split(',')
+    .map(value => value.trim())
+    .filter(Boolean);
+  return (forwarded[0] || req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+}
+
+async function recordDeviceSignal(userId, req) {
+  const rawDeviceKey = String(req.headers['x-kariyab-device'] || '').trim();
+  if (!/^[A-Za-z0-9_-]{20,120}$/.test(rawDeviceKey)) return;
+
+  const deviceKey = crypto
+    .createHash('sha256')
+    .update(rawDeviceKey)
+    .digest('hex');
+  const ip = requestIp(req);
+  const userAgent = String(req.headers['user-agent'] || '').slice(0, 1000);
+
+  await pool.query(
+    `INSERT INTO devices (user_id, device_key, ip_address, user_agent, last_seen_at)
+     VALUES ($1, $2, NULLIF($3, '')::inet, $4, NOW())`,
+    [userId, deviceKey, ip, userAgent]
+  );
+
+  const shared = await pool.query(
+    `SELECT COUNT(DISTINCT user_id)::int AS users
+     FROM devices
+     WHERE device_key = $1`,
+    [deviceKey]
+  );
+
+  if (Number(shared.rows[0]?.users || 0) > 1) {
+    await pool.query(
+      `INSERT INTO fraud_flags (user_id, flag_type, severity, reason, metadata)
+       SELECT $1, 'SHARED_DEVICE', 'REVIEW',
+              'This device has been observed on more than one Kariyab account.',
+              $2::jsonb
+       WHERE NOT EXISTS (
+         SELECT 1 FROM fraud_flags
+         WHERE user_id = $1
+           AND flag_type = 'SHARED_DEVICE'
+           AND status = 'OPEN'
+       )`,
+      [
+        userId,
+        JSON.stringify({
+          signal_only: true,
+          distinct_accounts: Number(shared.rows[0]?.users || 0)
+        })
+      ]
+    );
+  }
 }
 
 function publicId(prefix) {
@@ -1309,6 +1381,10 @@ app.post('/api/login',
         audience: 'kariyab-user'
       }
     );
+
+    await recordDeviceSignal(user.id, req).catch(error => {
+      console.error('Device signal recording failed:', error.message);
+    });
 
     res.json({
       token,

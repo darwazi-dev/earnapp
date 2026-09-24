@@ -2264,7 +2264,11 @@ app.post('/api/identity-verification', authRequired, sensitiveLimiter, async (re
   if (!['NATIONAL_ID', 'PASSPORT', 'OTHER'].includes(documentType)) {
     return res.status(400).json({ error: 'نوع مدرک معتبر نیست' });
   }
-  if (documentNumber.length < 4 || documentNumber.length > 80) {
+  if (
+    documentNumber.length < 4 ||
+    documentNumber.length > 80 ||
+    !/^[\p{L}\p{N}._\/-]+$/u.test(documentNumber)
+  ) {
     return res.status(400).json({ error: 'شماره مدرک معتبر نیست' });
   }
   if (!validIdentityImage(documentImage) || !validIdentityImage(selfieImage)) {

@@ -952,8 +952,14 @@ async function loadWallet() {
 
     const statusLabel = {
       pending: 'در حال بررسی',
+      requested: 'درخواست شده',
+      under_review: 'در حال بررسی',
       approved: 'تایید شده',
-      rejected: 'رد شده'
+      processing: 'در حال پردازش',
+      paid: 'پرداخت شده',
+      rejected: 'رد شده',
+      failed: 'ناموفق',
+      cancelled: 'لغو شده'
     };
 
     hist.innerHTML = `
@@ -1024,6 +1030,11 @@ async function submitWithdraw() {
 
     if (el('wd-account')) {
       el('wd-account').value = '';
+    }
+
+    if (el('wd-method')) {
+      el('wd-method').value = '';
+      el('wd-method').dispatchEvent(new Event('change'));
     }
 
     await loadWallet();

@@ -3476,6 +3476,8 @@ app.get('/api/admin/identity-verifications', adminRequired, async (req, res) => 
 });
 
 app.get('/api/admin/identity-verifications/:id/evidence/:kind', adminRequired, sensitiveLimiter, async (req, res) => {
+  const adminEntityId = String(req.params.id || '').trim();
+  if (!/^\\d+$/.test(adminEntityId)) return res.status(400).json({ error: 'شناسه معتبر نیست' });
   const kind = String(req.params.kind || '').toLowerCase();
   const column = kind === 'document' ? 'document_image' : kind === 'selfie' ? 'selfie_image' : null;
   const verificationRowId = String(req.params.id || '').trim();
@@ -3501,6 +3503,8 @@ app.get('/api/admin/identity-verifications/:id/evidence/:kind', adminRequired, s
 });
 
 app.post('/api/admin/identity-verifications/:id/review', adminRequired, sensitiveLimiter, async (req, res) => {
+  const adminEntityId = String(req.params.id || '').trim();
+  if (!/^\\d+$/.test(adminEntityId)) return res.status(400).json({ error: 'شناسه معتبر نیست' });
   const decision = String(req.body?.decision || '').trim().toUpperCase();
   const reason = String(req.body?.reason || '').trim().slice(0, 1000);
   const verificationRowId = String(req.params.id || '').trim();

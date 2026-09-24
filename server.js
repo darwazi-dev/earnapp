@@ -7,6 +7,12 @@ const crypto = require('crypto');
 const path = require('path');
 const { Pool } = require('pg');
 const { getPayoutProvider } = require('./lib/payout-providers');
+const {
+  AFN_SCALE,
+  minorToAfn,
+  afnToMinor,
+  calculateProviderRewardMinor
+} = require('./lib/financial-math');
 
 const app = express();
 
@@ -77,8 +83,6 @@ const DEFAULT_AFN_PER_USD = String(process.env.AFN_PER_USD || '68');
 const DEFAULT_USER_SHARE = String(process.env.USER_SHARE || '0.55');
 const DEFAULT_HOLD_HOURS = Number(process.env.EARNING_HOLD_HOURS || 72);
 
-const AFN_SCALE = 100;
-
 if (!DATABASE_URL) {
   console.error('FATAL: DATABASE_URL is missing');
   process.exit(1);
@@ -134,81 +138,6 @@ function publicId(prefix) {
     '_' +
     crypto.randomBytes(8).toString('hex')
   );
-}
-
-function minorToAfn(value) {
-  return Number(value || 0) / AFN_SCALE;
-}
-
-function afnToMinor(value) {
-  const text = String(value ?? '').trim();
-
-  if (!/^\d+(\.\d{1,2})?$/.test(text)) {
-    return null;
-  }
-
-  const [whole, fraction = ''] = text.split('.');
-
-  const minor =
-    BigInt(whole) * 100n +
-    BigInt((fraction + '00').slice(0, 2));
-
-  if (
-    minor <= 0n ||
-    minor > BigInt(Number.MAX_SAFE_INTEGER)
-  ) {
-    return null;
-  }
-
-  return Number(minor);
-}
-
-function safeCompare(a, b) {
-  const left = Buffer.from(String(a || ''));
-  const right = Buffer.from(String(b || ''));
-
-  if (left.length !== right.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(left, right);
-}
-
-function decimalFraction(value) {
-  let text = String(value ?? '').trim();
-
-  if (!/^\d+(\.\d+)?$/.test(text)) {
-    throw new Error('Invalid decimal');
-  }
-
-  const [whole, fraction = ''] = text.split('.');
-
-  return {
-    numerator: BigInt(whole + fraction),
-    denominator: 10n ** BigInt(fraction.length)
-  };
-}
-
-function multiplyDecimalsRounded(...values) {
-  let numerator = 1n;
-  let denominator = 1n;
-
-  for (const value of values) {
-    const f = decimalFraction(value);
-
-    numerator *= f.numerator;
-    denominator *= f.denominator;
-  }
-
-  const result =
-    (numerator + denominator / 2n) /
-    denominator;
-
-  if (result > BigInt(Number.MAX_SAFE_INTEGER)) {
-    throw new Error('Financial amount too large');
-  }
-
-  return Number(result);
 }
 
 async function getSetting(key, fallback, client = pool) {
@@ -1650,11 +1579,10 @@ app.get(
             await getRuntimeSettings(client);
 
           const rewardMinor =
-            multiplyDecimalsRounded(
+            calculateProviderRewardMinor(
               amountUsd,
               settings.afnPerUsd,
-              settings.revenueShare,
-              '100'
+              settings.revenueShare
             );
 
           if (rewardMinor <= 0) {

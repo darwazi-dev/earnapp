@@ -1231,7 +1231,7 @@ app.post(
   '/api/auth/password-recovery/request',
   authLimiter,
   async (req, res) => {
-    const phone = normalizePhone(req.body.phone);
+    const phone = normalizePhone(req.body?.phone);
 
     if (!phone || phone.length < 7) {
       return res.status(400).json({
@@ -1239,42 +1239,12 @@ app.post(
       });
     }
 
-    try {
-      const result = await pool.query(
-        `
-        SELECT id, phone, status
-        FROM users
-        WHERE phone = $1
-        LIMIT 1
-        `,
-        [phone]
-      );
-
-      // Do not reveal whether an account exists.
-      const generic = {
-        ok: true,
-        message:
-          'اگر حسابی با این شماره وجود داشته باشد، مراحل بازیابی پس از فعال‌شدن سرویس تأیید هویت ارسال می‌شود.'
-      };
-
-      if (!result.rows.length) {
-        return res.json(generic);
-      }
-
-      // Production reset is intentionally blocked until a real OTP provider
-      // is configured. Never issue reset tokens without identity verification.
-      return res.status(503).json({
-        error:
-          'بازیابی رمز هنوز فعال نشده است؛ سرویس تأیید شماره موبایل باید ابتدا متصل شود.',
-        recoveryAvailable: false,
-        phone: maskPhone(phone)
-      });
-    } catch (error) {
-      console.error('Password recovery request failed:', error);
-      res.status(500).json({
-        error: 'درخواست بازیابی رمز انجام نشد'
-      });
-    }
+    // This legacy route does not send a code. Do not look up the phone or
+    // reveal whether it belongs to an account.
+    return res.status(503).json({
+      error: 'بازیابی رمز از این مسیر فعال نیست',
+      recoveryAvailable: false
+    });
   }
 );
 

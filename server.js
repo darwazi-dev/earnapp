@@ -3126,6 +3126,7 @@ app.post(
 app.get(
   '/api/admin/wallet-reconciliation',
   adminRequired,
+  sensitiveLimiter,
   async (req, res) => {
     try {
       const result = await pool.query(
@@ -3229,6 +3230,9 @@ app.post(
   sensitiveLimiter,
   async (req, res) => {
     const userId = String(req.params.userId || '').trim();
+    if (!/^\d+$/.test(userId)) {
+      return res.status(400).json({ error: 'شناسه کاربر معتبر نیست' });
+    }
     const client = await pool.connect();
 
     try {

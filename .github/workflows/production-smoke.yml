@@ -1,0 +1,26 @@
+name: Kariyab Production Smoke Test
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 2 * * *"
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check production health
+        env:
+          APP_URL: https://earnapp-production.up.railway.app
+        run: |
+          set -euo pipefail
+          BODY="$(curl --fail --silent --show-error --max-time 20 "$APP_URL/api/health")"
+          echo "$BODY" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d.get("ok") is True; assert d.get("database")=="postgresql"; c=d.get("checks",{}); assert c.get("cpxConfigured") is True; assert c.get("jwtConfigured") is True; assert c.get("adminConfigured") is True'
+      - name: Check public app shell
+        env:
+          APP_URL: https://earnapp-production.up.railway.app
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 20 "$APP_URL/" -o /tmp/kariyab.html
+          test -s /tmp/kariyab.html

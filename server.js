@@ -3129,11 +3129,13 @@ app.get(
       const result = await pool.query(
         `
         SELECT
-          (SELECT COUNT(*) FROM users) AS total_users,
+          (SELECT COUNT(*) FROM users WHERE status = 'ACTIVE') AS total_users,
 
           (
-            SELECT COALESCE(SUM(available_balance_minor + pending_balance_minor), 0)
-            FROM wallets
+            SELECT COALESCE(SUM(w.available_balance_minor + w.pending_balance_minor), 0)
+            FROM wallets w
+            JOIN users u ON u.id = w.user_id
+            WHERE u.status = 'ACTIVE'
           ) AS total_balance,
 
           (
@@ -3208,6 +3210,14 @@ app.get(
         paidOut: minorToAfn(row.paid_out),
         providerRevenueUsd: Number(row.provider_revenue_usd || 0),
         userEarnings: minorToAfn(row.user_earnings),
+        platformShareUsd: Math.max(
+          0,
+          Number(row.provider_revenue_usd || 0) -
+          (
+            minorToAfn(row.user_earnings) /
+            Number((await getRuntimeSettings()).afnPerUsd || DEFAULT_AFN_PER_USD)
+          )
+        ),
         completedEarnings: Number(row.completed_earnings || 0)
       });
     } catch (error) {
@@ -3795,6 +3805,7 @@ app.get('/api/admin/identity-verifications', adminRequired, async (req, res) => 
               u.name AS user_name, u.phone AS user_phone
        FROM identity_verifications iv
        JOIN users u ON u.id = iv.user_id
+        AND u.status = 'ACTIVE'
        ORDER BY CASE iv.status WHEN 'UNDER_REVIEW' THEN 0 ELSE 1 END,
                 iv.submitted_at DESC
        LIMIT 200`
@@ -4051,6 +4062,7 @@ app.get(
           FROM withdrawals w
           JOIN users u
             ON u.id = w.user_id
+           AND u.status = 'ACTIVE'
           LEFT JOIN withdrawal_methods wm
             ON wm.id = w.method_id
           ORDER BY w.created_at DESC

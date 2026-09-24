@@ -4093,10 +4093,14 @@ app.post(
         req.body.paymentReference || ''
       ).trim();
 
-    if (!paymentReference) {
+    if (
+      !paymentReference ||
+      paymentReference.length > 200 ||
+      /[\u0000-\u001F\u007F]/.test(paymentReference)
+    ) {
       return res.status(400).json({
         error:
-          'Payment Reference الزامی است'
+          'Payment Reference معتبر و حداکثر ۲۰۰ کاراکتر باشد'
       });
     }
 
@@ -4166,6 +4170,7 @@ app.post(
             AND type = 'WITHDRAWAL'
             AND metadata->>'withdrawal_id' = $2
           LIMIT 1
+          FOR UPDATE
           `,
           [
             withdrawal.user_id,

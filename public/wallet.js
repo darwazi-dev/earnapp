@@ -7,6 +7,8 @@ const statusLabels={PENDING:'🟡 در انتظار',APPROVED:'🟢 تأیید �
 function date(v){try{return new Date(v).toLocaleString('fa-AF')}catch{return ''}}
 async function load(){
  if(!token){location.replace('/');return}
+ const refreshBtn=$('refresh');
+ if(refreshBtn){refreshBtn.disabled=true;refreshBtn.textContent='در حال به‌روزرسانی...'}
  try{
   const res=await fetch('/api/wallet',{headers:{Authorization:'Bearer '+token}});
   if(res.status===401){localStorage.removeItem('token');location.replace('/');return}
@@ -26,6 +28,10 @@ async function load(){
   $('withdrawals').innerHTML=withdrawals.length?withdrawals.map(w=>
     '<div class="row"><div class="row-main"><strong>'+esc(w.method||'روش نامشخص')+'</strong><div class="meta">'+esc(statusLabels[String(w.rawStatus||'').toUpperCase()]||w.rawStatus||'')+' · '+esc(date(w.createdAt))+'</div></div><div class="amount">'+money(w.amount)+' ؋</div></div>'
   ).join(''):'<div class="empty">هنوز درخواست برداشتی ثبت نشده است.</div>';
- }catch(e){$('ledger').innerHTML='<div class="error">'+esc(e.message)+'</div>'}
+ }catch(e){
+  $('ledger').innerHTML='<div class="error">'+esc(e.message)+'</div>';
+ }finally{
+  if(refreshBtn){refreshBtn.disabled=false;refreshBtn.textContent='به‌روزرسانی کیف پول'}
+ }
 }
-$('refresh').addEventListener('click',load); load();
+$('refresh').addEventListener('click',async()=>{await load()}); load();

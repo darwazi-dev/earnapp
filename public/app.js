@@ -378,7 +378,11 @@ function renderAccount(data) {
   if (language) language.value = data.language || 'fa-AF';
   applyLanguage(data.language || localStorage.getItem('kariyabLanguage') || 'fa-AF');
   if (notifications) notifications.checked = data.notifications_enabled !== false;
-  if (status) status.textContent = data.phone_verified ? 'تأیید شده' : 'هنوز تأیید نشده';
+  if (status) status.textContent = data.phone_verified ? 'تأیید شده ✓' : 'هنوز تأیید نشده';
+  const verifyBtn = el('phone-verify-btn');
+  const verifyBox = el('phone-verify-box');
+  if (verifyBtn) verifyBtn.style.display = data.phone_verified ? 'none' : 'inline-block';
+  if (data.phone_verified && verifyBox) verifyBox.classList.add('hidden');
   if (photo) {
     if (data.profile_photo) {
       photo.replaceChildren();
@@ -389,6 +393,46 @@ function renderAccount(data) {
     } else {
       photo.textContent = (data.name || 'ک').trim().charAt(0) || 'ک';
     }
+  }
+}
+
+async function sendPhoneVerification() {
+  const btn = el('phone-verify-btn');
+  const box = el('phone-verify-box');
+  const note = el('phone-verify-note');
+  if (btn) btn.disabled = true;
+  try {
+    const data = await api('/api/auth/phone-verification/send', { method: 'POST' });
+    if (data.alreadyVerified) {
+      await loadProfile();
+      return;
+    }
+    if (box) box.classList.remove('hidden');
+    if (note) note.textContent = 'کد تأیید ارسال شد و تا ۱۰ دقیقه معتبر است.';
+    el('phone-verify-code')?.focus();
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function submitPhoneVerification() {
+  const code = el('phone-verify-code')?.value.trim() || '';
+  if (!/^\d{6}$/.test(code)) return toast('کد ۶ رقمی را وارد کنید');
+  const btn = el('phone-verify-submit');
+  if (btn) btn.disabled = true;
+  try {
+    await api('/api/auth/phone-verification/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code })
+    });
+    toast('شماره تلفن تأیید شد ✓');
+    await loadProfile();
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -1270,3 +1314,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showView('login');
   }
 });
+
+
+el('phone-verify-btn')?.addEventListener('click', sendPhoneVerification);
+el('phone-verify-submit')?.addEventListener('click', submitPhoneVerification);

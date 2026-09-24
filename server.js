@@ -126,8 +126,23 @@ async function ensureRuntimeSchema() {
   );
 
   await pool.query(
+    `DELETE FROM devices a
+     USING devices b
+     WHERE a.id < b.id
+       AND a.user_id = b.user_id
+       AND a.device_key = b.device_key
+       AND a.device_key IS NOT NULL`
+  );
+
+  await pool.query(
     `CREATE INDEX IF NOT EXISTS idx_devices_device_key
        ON devices(device_key)`
+  );
+
+  await pool.query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_devices_user_device
+       ON devices(user_id, device_key)
+       WHERE device_key IS NOT NULL`
   );
 }
 
@@ -187,7 +202,12 @@ async function recordDeviceSignal(userId, req) {
 
   await pool.query(
     `INSERT INTO devices (user_id, device_key, ip_address, user_agent, last_seen_at)
-     VALUES ($1, $2, NULLIF($3, '')::inet, $4, NOW())`,
+     VALUES ($1, $2, NULLIF($3, '')::inet, $4, NOW())
+     ON CONFLICT (user_id, device_key) WHERE device_key IS NOT NULL
+     DO UPDATE SET
+       ip_address = EXCLUDED.ip_address,
+       user_agent = EXCLUDED.user_agent,
+       last_seen_at = NOW()`,
     [userId, deviceKey, ip, userAgent]
   );
 

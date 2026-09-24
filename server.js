@@ -1467,6 +1467,13 @@ app.get(
     try {
       await client.query('BEGIN');
 
+      // Serialize completion and reversal for one provider transaction.
+      // A reversal that arrived first must never be followed by a credit.
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))',
+        ['CPX', transId]
+      );
+
       const providerResult =
         await client.query(
           `
@@ -1564,6 +1571,26 @@ app.get(
       // ---------------------------------------------
 
       if (status === '1') {
+        const priorReversal = await client.query(
+          `SELECT id FROM offer_events
+           WHERE provider_id = $1
+             AND provider_event_id = $2
+             AND event_type = 'REVERSED'
+           LIMIT 1`,
+          [provider.id, `${transId}:2`]
+        );
+
+        if (priorReversal.rows.length) {
+          await client.query(
+            `UPDATE offer_events
+             SET validation_status = 'REQUIRES_REVIEW', processed_at = NOW()
+             WHERE id = $1`,
+            [eventInsert.rows[0].id]
+          );
+          await client.query('COMMIT');
+          return res.status(200).send('1');
+        }
+
         if (
           !/^\d+(\.\d+)?$/.test(amountUsd)
         ) {

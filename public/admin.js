@@ -223,7 +223,6 @@ function renderActions(w){
   if(status === 'APPROVED'){
     return '<div class="actions">'+
       '<button class="btn-processing withdrawal-action" data-action="processing" data-id="'+id+'">شروع پردازش</button>'+
-      '<button class="btn-paid withdrawal-action" data-action="paid" data-id="'+id+'">ثبت پرداخت</button>'+
       '<button class="btn-reject withdrawal-action" data-action="reject" data-id="'+id+'">رد</button>'+
       '</div>';
   }

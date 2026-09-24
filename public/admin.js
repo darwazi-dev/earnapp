@@ -617,11 +617,20 @@ document.getElementById('identityTable')?.addEventListener('click', async (event
     if(!Number.isFinite(id) || !['document','selfie'].includes(kind)) return;
     try{
       const data=await adminApi('/api/admin/identity-verifications/'+id+'/evidence/'+kind);
-      const win=window.open('','_blank');
+      const win=window.open('','_blank','noopener,noreferrer');
       if(!win) return showNotice('مرورگر نمایش تصویر را مسدود کرد.','error');
-      win.document.write('<!doctype html><meta charset="utf-8"><title>Identity image</title><style>body{margin:0;background:#111;display:flex;min-height:100vh;align-items:center;justify-content:center}img{max-width:96vw;max-height:96vh;object-fit:contain}</style><img alt="Identity review">');
-      win.document.querySelector('img').src=data.image;
-      win.document.close();
+
+      const doc=win.document;
+      doc.title='Identity image';
+
+      const style=doc.createElement('style');
+      style.textContent='body{margin:0;background:#111;display:flex;min-height:100vh;align-items:center;justify-content:center}img{max-width:96vw;max-height:96vh;object-fit:contain}';
+      doc.head.appendChild(style);
+
+      const img=doc.createElement('img');
+      img.alt='Identity review';
+      img.src=String(data.image || '');
+      doc.body.replaceChildren(img);
     }catch(e){ showNotice(e.message,'error'); }
     return;
   }
@@ -816,13 +825,22 @@ async function showFinancialDiagnostics(userId){
       'Ledger: '+JSON.stringify(data.ledger),
       'Withdrawals: '+JSON.stringify(data.withdrawals)
     ];
-    const win=window.open('','_blank');
+    const win=window.open('','_blank','noopener,noreferrer');
     if(!win){
       showNotice('مرورگر پنجره جزئیات را مسدود کرد.','error');
       return;
     }
-    win.document.write('<!doctype html><meta charset="utf-8"><title>Financial Diagnostics</title><pre style="white-space:pre-wrap;word-break:break-word;font-family:monospace;padding:20px">'+escapeHtml(lines.join('\n\n'))+'</pre>');
-    win.document.close();
+
+    const doc=win.document;
+    doc.title='Financial Diagnostics';
+
+    const pre=doc.createElement('pre');
+    pre.style.whiteSpace='pre-wrap';
+    pre.style.wordBreak='break-word';
+    pre.style.fontFamily='monospace';
+    pre.style.padding='20px';
+    pre.textContent=lines.join('\n\n');
+    doc.body.replaceChildren(pre);
   }catch(e){
     showNotice(e.message,'error');
   }

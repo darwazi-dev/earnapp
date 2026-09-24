@@ -1405,6 +1405,10 @@ app.post('/api/register',
       }
     );
 
+    await recordDeviceSignal(user.id, req).catch(error => {
+      console.error('Registration device signal recording failed:', error.message);
+    });
+
     res.json({
       token,
       name: user.name,

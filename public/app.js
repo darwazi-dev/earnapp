@@ -801,7 +801,7 @@ async function loadNotifications() {
     }
     list.innerHTML = items.map(item =>
       '<div class="notification-item ' + (item.read ? '' : 'unread') +
-      '" data-action="notification-read" data-notification-id="' + Number(item.id) + '">' +
+      '" data-action="notification-read" data-notification-id="' + safeNumericId(item.id) + '">' +
       '<div>' + escapeHtml(item.title) + '</div>' +
       '<small>' + escapeHtml(item.body) + '</small>' +
       '<small>' + escapeHtml(new Date(item.createdAt).toLocaleString('fa-AF')) + '</small>' +
@@ -1096,6 +1096,11 @@ function escapeHtml(value) {
 function escapeAttribute(value) {
   return escapeHtml(value)
     .replaceAll('`', '&#096;');
+}
+
+function safeNumericId(value) {
+  const id = Number(value);
+  return Number.isSafeInteger(id) && id > 0 ? String(id) : '0';
 }
 
 // ---------- Forgot password ----------

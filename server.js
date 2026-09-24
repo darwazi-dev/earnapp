@@ -3812,6 +3812,18 @@ app.post(
   adminRequired,
   sensitiveLimiter,
   async (req, res) => {
+    const rejectionReason = String(req.body.reason || '').trim();
+
+    if (
+      !rejectionReason ||
+      rejectionReason.length > 500 ||
+      /[\u0000-\u001F\u007F]/.test(rejectionReason)
+    ) {
+      return res.status(400).json({
+        error: 'دلیل رد درخواست الزامی و حداکثر ۵۰۰ کاراکتر باشد'
+      });
+    }
+
     const client =
       await pool.connect();
 
@@ -3862,11 +3874,7 @@ app.post(
         UPDATE withdrawals
         SET
           status = 'REJECTED',
-          rejection_reason =
-            COALESCE(
-              NULLIF($2, ''),
-              'Rejected by admin'
-            ),
+          rejection_reason = $2,
           reviewed_at = COALESCE(reviewed_at, NOW()),
           updated_at = NOW()
         WHERE id = $1
@@ -4000,7 +4008,6 @@ app.post(
         ]
       );
 
-      const rejectionReason = String(req.body.reason || '').trim();
       await client.query(
         `INSERT INTO notifications (user_id, title, body)
          VALUES ($1, 'برداشت رد شد', $2)`,

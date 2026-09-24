@@ -462,6 +462,9 @@ async function promotePendingEarnings(userId) {
         user_id = $1
         AND type = 'EARNING'
         AND status = 'PENDING'
+        -- A callback and elapsed hold time do not prove provider settlement.
+        -- Keep earnings pending until settlement is independently verified.
+        AND metadata->>'settlement_verified' = 'true'
         AND created_at <=
           NOW() - make_interval(hours => $2::int)
       ORDER BY id

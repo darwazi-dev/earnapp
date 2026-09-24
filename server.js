@@ -1893,9 +1893,37 @@ app.get(
               );
 
             if (!approvedWalletResult.rows.length) {
-              throw new Error(
-                'Approved wallet mismatch during reversal'
+              // The earning was already approved but is no longer fully
+              // recoverable from available balance (for example, it may
+              // have been reserved/withdrawn). Do not lose the provider
+              // reversal by rolling back the raw event and fraud evidence.
+              // Keep the original earning transaction unchanged, mark this
+              // event for manual review, and block withdrawals via a HIGH
+              // fraud flag until an administrator resolves the debt.
+              await client.query(
+                `
+                UPDATE offer_events
+                SET
+                  validation_status = 'REQUIRES_REVIEW',
+                  processed_at = NOW()
+                WHERE id = $1
+                `,
+                [eventInsert.rows[0].id]
               );
+
+              await client.query(
+                `
+                INSERT INTO notifications (user_id, title, body)
+                VALUES ($1, 'بررسی حساب لازم است', $2)
+                `,
+                [
+                  user.id,
+                  'یک اصلاح درآمد توسط ارائه‌دهنده ثبت شده است و حساب برای بررسی مالی علامت‌گذاری شد.'
+                ]
+              );
+
+              await client.query('COMMIT');
+              return res.status(200).send('1');
             }
           }
 

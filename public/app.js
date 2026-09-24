@@ -773,7 +773,7 @@ function renderPendingInfo(data) {
 
   if (Number(data.pending || 0) > 0) {
     pendingSub.textContent =
-      `؋${formatMoney(data.pending)} در حال بررسی — ` +
+      `؋${formatMoney(data.pending)} در انتظار تأیید تسویه — ` +
       `حداقل برداشت: ${minWithdraw} افغانی`;
   } else {
     pendingSub.textContent =

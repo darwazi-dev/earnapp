@@ -1267,6 +1267,8 @@ app.get('/api/health', async (req, res) => {
         cpxConfigured: Boolean(CPX_SECURE_HASH),
         cpxAppIdConfigured: Boolean(CPX_APP_ID),
         cpxProviderReady: providerResult.rows.length === 1,
+        networkRiskConfigured: Boolean(IPQS_API_KEY),
+        phoneOtpConfigured: vonageConfigured(),
         withdrawalMethodsEnabled: Number(methodResult.rows[0]?.count || 0),
         jwtConfigured: Boolean(JWT_SECRET),
         adminConfigured: Boolean(ADMIN_PASSWORD),

@@ -971,8 +971,19 @@ async function checkVonageOtp(requestId, code) {
   });
 }
 
+const phoneOtpSendLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  keyGenerator: req => String(req.userId || req.ip || 'anonymous'),
+  message: {
+    error: 'تعداد درخواست کد تأیید زیاد است. بعداً دوباره تلاش کنید.'
+  }
+});
+
 app.post('/api/auth/phone-verification/send',
-  authRequired, sensitiveLimiter, async (req, res) => {
+  authRequired, phoneOtpSendLimiter, async (req, res) => {
     try {
       const userResult = await pool.query(
         'SELECT id, phone, phone_verified FROM users WHERE id = $1 LIMIT 1',

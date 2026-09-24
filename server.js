@@ -1734,20 +1734,30 @@ app.get(
             ]
           );
 
-          await client.query(
+          const creditedWallet = await client.query(
             `
             UPDATE wallets
             SET
               pending_balance_minor =
                 pending_balance_minor + $2,
               updated_at = NOW()
-            WHERE user_id = $1
+            WHERE
+              user_id = $1
+              AND pending_balance_minor <= $3
+            RETURNING id
             `,
             [
               user.id,
-              rewardMinor
+              rewardMinor,
+              Number.MAX_SAFE_INTEGER - rewardMinor
             ]
           );
+
+          if (!creditedWallet.rows.length) {
+            throw new Error(
+              'Pending wallet credit failed or exceeds safe integer range'
+            );
+          }
 
           await client.query(
             `

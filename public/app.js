@@ -870,13 +870,19 @@ async function loadWithdrawalMethods() {
     }
 
     select.disabled = false;
-    select.innerHTML =
-      '<option value="">روش پرداخت را انتخاب کنید</option>' +
-      methods.map(method =>
-        '<option value="' + escapeAttribute(method.code) + '">' +
-        escapeHtml(method.name) +
-        '</option>'
-      ).join('');
+    select.replaceChildren();
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'روش پرداخت را انتخاب کنید';
+    select.appendChild(placeholder);
+
+    methods.forEach(method => {
+      const option = document.createElement('option');
+      option.value = String(method.code || '');
+      option.textContent = String(method.name || '');
+      select.appendChild(option);
+    });
   } catch (error) {
     select.innerHTML = '<option value="">دریافت روش‌ها ناموفق بود</option>';
     select.disabled = true;

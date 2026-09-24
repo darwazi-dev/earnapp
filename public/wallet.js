@@ -26,7 +26,7 @@ async function load(){
   }).join(''):'<div class="empty">هنوز تراکنش مالی ثبت نشده است.</div>';
   const withdrawals=Array.isArray(data.withdrawals)?data.withdrawals:[];
   $('withdrawals').innerHTML=withdrawals.length?withdrawals.map(w=>
-    '<div class="row"><div class="row-main"><strong>'+esc(w.method||'روش نامشخص')+'</strong><div class="meta">'+esc(statusLabels[String(w.rawStatus||'').toUpperCase()]||w.rawStatus||'')+' · '+esc(date(w.createdAt))+'</div></div><div class="amount">'+money(w.amount)+' ؋</div></div>'
+    '<div class="row"><div class="row-main"><strong>'+esc(w.method||'روش نامشخص')+'</strong><div class="meta">'+(w.isTest?'آزمایشی · ':'')+esc(statusLabels[String(w.rawStatus||'').toUpperCase()]||w.rawStatus||'')+' · '+esc(date(w.createdAt))+'</div></div><div class="amount">'+money(w.amount)+' ؋</div></div>'
   ).join(''):'<div class="empty">هنوز درخواست برداشتی ثبت نشده است.</div>';
  }catch(e){
   $('ledger').innerHTML='<div class="error">'+esc(e.message)+'</div>';

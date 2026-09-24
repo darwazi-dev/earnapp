@@ -2072,6 +2072,11 @@ app.get(
             w.amount_minor,
             w.status,
             w.created_at,
+            (
+              COALESCE(w.is_test, FALSE)
+              OR COALESCE(w.payment_reference, '') ~* '^TEST([[:space:]_-]|$)'
+              OR w.withdrawal_id ~* '^TEST([[:space:]_-]|$)'
+            ) AS is_test,
             wm.name AS method
           FROM withdrawals w
           LEFT JOIN withdrawal_methods wm
@@ -2135,6 +2140,7 @@ app.get(
               minorToAfn(w.amount_minor),
             method:
               w.method,
+            isTest: Boolean(w.is_test),
             rawStatus: w.status,
             status:
               w.status === 'REJECTED'

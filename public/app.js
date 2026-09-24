@@ -975,7 +975,7 @@ async function loadWallet() {
           <span
             class="status-pill ${withdrawalStatusClass(w.status)}"
           >
-            ${statusLabel[w.status] || escapeHtml(w.rawStatus || w.status)}
+            ${w.isTest ? 'آزمایشی · ' : ''}${statusLabel[w.status] || escapeHtml(w.rawStatus || w.status)}
           </span>
         </div>
       `).join('')}

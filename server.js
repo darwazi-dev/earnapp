@@ -1031,8 +1031,36 @@ app.get('/api/health', async (req, res) => {
       `SELECT COUNT(*)::int AS count FROM withdrawal_methods WHERE enabled = TRUE`
     );
 
-    res.json({
-      ok: true,
+    const schemaResult = await pool.query(
+      `SELECT
+         EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_schema = 'public'
+             AND table_name = 'identity_verifications'
+             AND column_name = 'metadata'
+         ) AS identity_metadata,
+         EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_schema = 'public'
+             AND table_name = 'withdrawals'
+             AND column_name = 'is_test'
+         ) AS withdrawal_is_test,
+         EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_schema = 'public'
+             AND table_name = 'withdrawals'
+             AND column_name = 'environment'
+         ) AS withdrawal_environment`
+    );
+
+    const schema = schemaResult.rows[0] || {};
+    const productionSchemaReady =
+      schema.identity_metadata === true &&
+      schema.withdrawal_is_test === true &&
+      schema.withdrawal_environment === true;
+
+    res.status(productionSchemaReady ? 200 : 503).json({
+      ok: productionSchemaReady,
       database: 'postgresql',
       checks: {
         cpxConfigured: Boolean(CPX_SECURE_HASH),
@@ -1040,7 +1068,11 @@ app.get('/api/health', async (req, res) => {
         cpxProviderReady: providerResult.rows.length === 1,
         withdrawalMethodsEnabled: Number(methodResult.rows[0]?.count || 0),
         jwtConfigured: Boolean(JWT_SECRET),
-        adminConfigured: Boolean(ADMIN_PASSWORD)
+        adminConfigured: Boolean(ADMIN_PASSWORD),
+        productionSchemaReady,
+        identityMetadataReady: schema.identity_metadata === true,
+        withdrawalTestFlagReady: schema.withdrawal_is_test === true,
+        withdrawalEnvironmentReady: schema.withdrawal_environment === true
       }
     });
   } catch (error) {

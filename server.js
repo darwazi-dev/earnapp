@@ -231,7 +231,8 @@ async function recordDeviceSignal(userId, req) {
     [deviceKey]
   );
 
-  if (Number(shared.rows[0]?.users || 0) > 1) {
+  const sharedUsers = Number(shared.rows[0]?.users || 0);
+  if (sharedUsers > 1) {
     await pool.query(
       `INSERT INTO fraud_flags (user_id, flag_type, severity, reason, metadata)
        SELECT $1, 'SHARED_DEVICE', 'REVIEW',
@@ -241,13 +242,38 @@ async function recordDeviceSignal(userId, req) {
          SELECT 1 FROM fraud_flags
          WHERE user_id = $1
            AND flag_type = 'SHARED_DEVICE'
-           AND status = 'OPEN'
+           AND status IN ('OPEN', 'UNDER_REVIEW')
        )`,
       [
         userId,
         JSON.stringify({
           signal_only: true,
-          distinct_accounts: Number(shared.rows[0]?.users || 0)
+          distinct_accounts: sharedUsers
+        })
+      ]
+    );
+  }
+
+  // Multiple accounts sharing the same device is a review signal, not automatic fraud.
+  // Escalate only when the same device is observed across several accounts.
+  if (sharedUsers >= 3) {
+    await pool.query(
+      `INSERT INTO fraud_flags (user_id, flag_type, severity, reason, metadata)
+       SELECT $1, 'DEVICE_ACCOUNT_VELOCITY', 'HIGH',
+              'This device has been observed across three or more Kariyab accounts.',
+              $2::jsonb
+       WHERE NOT EXISTS (
+         SELECT 1 FROM fraud_flags
+         WHERE user_id = $1
+           AND flag_type = 'DEVICE_ACCOUNT_VELOCITY'
+           AND status IN ('OPEN', 'UNDER_REVIEW')
+       )`,
+      [
+        userId,
+        JSON.stringify({
+          distinct_accounts: sharedUsers,
+          threshold: 3,
+          automated_signal: true
         })
       ]
     );

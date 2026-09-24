@@ -451,6 +451,40 @@ async function uploadProfilePhoto(file) {
   }
 }
 
+async function deleteAccount() {
+  const password = prompt('برای حذف حساب، رمز عبور فعلی خود را وارد کنید:');
+  if (password === null) return;
+  if (!password) return toast('رمز عبور لازم است');
+
+  const confirmed = confirm(
+    'حساب شما غیرفعال و اطلاعات شخصی آن حذف می‌شود. سوابق مالی لازم برای حسابرسی نگهداری می‌شود. آیا ادامه می‌دهید؟'
+  );
+  if (!confirmed) return;
+
+  try {
+    await api('/api/account/delete', {
+      method: 'POST',
+      body: JSON.stringify({ password, confirmation: 'DELETE' })
+    });
+
+    localStorage.removeItem('token');
+    localStorage.removeItem('userName');
+    TOKEN = null;
+    USER_NAME = '';
+    PROFILE_DATA = null;
+    closeAccount();
+    showView('register');
+    toast('حساب حذف شد. اکنون می‌توانید یک حساب تازه بسازید.');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+const deleteAccountBtn = el('delete-account-btn');
+if (deleteAccountBtn) {
+  deleteAccountBtn.addEventListener('click', deleteAccount);
+}
+
 // ---------- Identity verification ----------
 async function imageFileToDataUrl(file) {
   if (!file || !['image/jpeg','image/png','image/webp'].includes(file.type)) {

@@ -486,6 +486,10 @@ async function promotePendingEarnings(userId) {
         );
       }
 
+      if (!Number.isSafeInteger(totalMinor + amount)) {
+        throw new Error('Pending promotion total exceeds safe integer range');
+      }
+
       totalMinor += amount;
 
       await client.query(

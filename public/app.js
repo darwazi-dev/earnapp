@@ -953,7 +953,7 @@ async function loadWallet() {
           </span>
 
           <span
-            class="status-pill status-${escapeAttribute(w.status)}"
+            class="status-pill ${withdrawalStatusClass(w.status)}"
           >
             ${statusLabel[w.status] || escapeHtml(w.rawStatus || w.status)}
           </span>
@@ -1101,6 +1101,13 @@ function escapeAttribute(value) {
 function safeNumericId(value) {
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? String(id) : '0';
+}
+
+function withdrawalStatusClass(value) {
+  const status = String(value || '').toLowerCase();
+  return ['pending', 'approved', 'rejected', 'processing', 'paid', 'failed', 'cancelled'].includes(status)
+    ? 'status-' + status
+    : 'status-pending';
 }
 
 // ---------- Forgot password ----------

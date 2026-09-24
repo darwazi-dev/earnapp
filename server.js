@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const path = require('path');
 const { Pool } = require('pg');
+const { getPayoutProvider } = require('./lib/payout-providers');
 
 const app = express();
 
@@ -4044,6 +4045,19 @@ app.post(
 
       const withdrawal = result.rows[0];
 
+      const processingDetails = await client.query(
+        `SELECT user_id, amount_minor, method FROM withdrawals WHERE id = $1 LIMIT 1`,
+        [withdrawal.id]
+      );
+
+      const processingRow = processingDetails.rows[0];
+      const payoutProvider = getPayoutProvider(processingRow?.method);
+      const payoutPlan = await payoutProvider.initiate({
+        withdrawal_id: withdrawal.withdrawal_id,
+        amount_minor: processingRow?.amount_minor,
+        method: processingRow?.method
+      });
+
       await client.query(
         `
         INSERT INTO admin_actions (
@@ -4062,15 +4076,14 @@ app.post(
         [
           String(withdrawal.id),
           JSON.stringify({
-            withdrawal_id: withdrawal.withdrawal_id
+            withdrawal_id: withdrawal.withdrawal_id,
+            payout_provider: payoutPlan.provider,
+            payout_mode: payoutPlan.mode,
+            payout_status: payoutPlan.status
           })
         ]
       );
 
-      const processingDetails = await client.query(
-        `SELECT user_id, amount_minor FROM withdrawals WHERE id = $1 LIMIT 1`,
-        [withdrawal.id]
-      );
       if (processingDetails.rows.length) {
         await client.query(
           `INSERT INTO notifications (user_id, title, body)

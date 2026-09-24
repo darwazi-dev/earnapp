@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id);
 const money=v=>new Intl.NumberFormat('fa-AF',{maximumFractionDigits:2}).format(Number(v||0));
 const esc=v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#039;");
 const typeLabels={EARNING:'درآمد',EARNING_APPROVED:'تأیید درآمد',WITHDRAWAL_RESERVED:'رزرو برداشت',WITHDRAWAL_PAID:'پرداخت برداشت',WITHDRAWAL_REFUND:'برگشت برداشت',REVERSAL:'برگشت/اصلاح درآمد',ADJUSTMENT:'اصلاح حساب',LEGACY_RECONCILIATION_BASELINE:'تطبیق حساب'};
-const statusLabels={PENDING:'در حال بررسی',APPROVED:'تأیید شده',REQUESTED:'درخواست شده',UNDER_REVIEW:'در حال بررسی',PROCESSING:'در حال پردازش',PAID:'پرداخت شده',REJECTED:'رد شده',FAILED:'ناموفق',CANCELLED:'لغو شده'};
+const statusLabels={PENDING:'🟡 در انتظار',APPROVED:'🟢 تأیید شده',REQUESTED:'🟡 درخواست شده',UNDER_REVIEW:'🟡 در حال بررسی',PROCESSING:'🟡 در حال پردازش',PAID:'🟢 پرداخت شده',REJECTED:'🔴 رد شده',REVERSED:'🔴 برگشت داده شده',FAILED:'🔴 ناموفق',CANCELLED:'لغو شده'};
 function date(v){try{return new Date(v).toLocaleString('fa-AF')}catch{return ''}}
 async function load(){
  if(!token){location.replace('/');return}
@@ -12,9 +12,11 @@ async function load(){
   if(res.status===401){localStorage.removeItem('token');location.replace('/');return}
   const data=await res.json();
   if(!res.ok) throw new Error(data.error||'دریافت کیف پول انجام نشد');
-  $('available').textContent=money(data.available); $('pending').textContent=money(data.pending);
+  const available=Number(data.available||0), pending=Number(data.pending||0);
+  $('total-balance').textContent=money(available+pending);
+  $('available').textContent=money(available); $('pending').textContent=money(pending);
   $('lifetime-earnings').textContent=money(data.lifetimeEarnings); $('lifetime-withdrawals').textContent=money(data.lifetimeWithdrawals);
-  $('minimum').textContent=money(data.minWithdraw);
+  $('minimum').textContent=money(data.minWithdraw); $('minimum-card').textContent=money(data.minWithdraw);
   const ledger=Array.isArray(data.ledger)?data.ledger:[];
   $('ledger').innerHTML=ledger.length?ledger.map(x=>{
     const amount=Number(x.amount||0), sign=amount>0?'+':'';

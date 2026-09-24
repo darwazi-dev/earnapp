@@ -91,6 +91,7 @@ const OTP_BRAND = String(process.env.OTP_BRAND || 'Kariyab').trim();
 
 const CPX_APP_ID = String(process.env.CPX_APP_ID || '36387').trim();
 const CPX_SECURE_HASH = String(process.env.CPX_SECURE_HASH || '').trim();
+const IPQS_API_KEY = String(process.env.IPQS_API_KEY || '').trim();
 
 const DEFAULT_AFN_PER_USD = String(process.env.AFN_PER_USD || '68');
 const DEFAULT_USER_SHARE = String(process.env.USER_SHARE || '0.55');
@@ -195,11 +196,70 @@ function md5(value) {
 }
 
 function requestIp(req) {
-  const forwarded = String(req.headers['x-forwarded-for'] || '')
-    .split(',')
-    .map(value => value.trim())
-    .filter(Boolean);
-  return (forwarded[0] || req.socket?.remoteAddress || '').replace(/^::ffff:/, '');
+  // Railway documents X-Real-IP as the client remote IP on public HTTP traffic.
+  // Do not trust client-supplied X-Forwarded-For for fraud decisions.
+  return String(req.headers['x-real-ip'] || req.socket?.remoteAddress || '')
+    .trim()
+    .replace(/^::ffff:/, '');
+}
+
+function publicIp(value) {
+  const ip = String(value || '').trim();
+  if (!ip) return false;
+  // IPQS validates the address itself; this only prevents obviously unsafe URL input.
+  return /^[0-9a-fA-F:.]{3,45}$/.test(ip);
+}
+
+async function assessNetworkRisk(req) {
+  if (!IPQS_API_KEY) return { configured: false, detected: false };
+
+  const ip = requestIp(req);
+  if (!publicIp(ip)) return { configured: true, detected: false, unavailable: true };
+
+  const params = new URLSearchParams({
+    strictness: '0',
+    allow_public_access_points: 'true',
+    lighter_penalties: 'true'
+  });
+  const userAgent = String(req.headers['user-agent'] || '').slice(0, 500);
+  const language = String(req.headers['accept-language'] || '').slice(0, 100);
+  if (userAgent) params.set('user_agent', userAgent);
+  if (language) params.set('user_language', language);
+
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 2500);
+    let response;
+    try {
+      response = await fetch(
+        'https://ipqualityscore.com/api/json/ip/' +
+        encodeURIComponent(IPQS_API_KEY) + '/' +
+        encodeURIComponent(ip) + '?' + params.toString(),
+        { signal: controller.signal }
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+    if (!response.ok) return { configured: true, detected: false, unavailable: true };
+
+    const data = await response.json();
+    if (data.success === false) return { configured: true, detected: false, unavailable: true };
+
+    const vpn = data.vpn === true || data.active_vpn === true;
+    const proxy = data.proxy === true;
+    const tor = data.tor === true || data.active_tor === true;
+    return {
+      configured: true,
+      detected: vpn || proxy || tor,
+      vpn,
+      proxy,
+      tor,
+      fraudScore: Number.isFinite(Number(data.fraud_score)) ? Number(data.fraud_score) : null
+    };
+  } catch (error) {
+    console.warn('Network risk lookup unavailable:', error.message);
+    return { configured: true, detected: false, unavailable: true };
+  }
 }
 
 async function recordDeviceSignal(userId, req) {
@@ -1681,6 +1741,14 @@ app.get(
     }
 
     try {
+      const networkRisk = await assessNetworkRisk(req);
+      if (networkRisk.detected) {
+        return res.status(403).json({
+          error: 'VPN یا Proxy شناسایی شد. برای استفاده از فرصت‌های درآمدی آن را خاموش کرده و دوباره تلاش کنید.',
+          code: 'VPN_OR_PROXY_DETECTED'
+        });
+      }
+
       const blockingFraud = await pool.query(
         `
         SELECT 1

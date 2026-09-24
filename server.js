@@ -3131,9 +3131,9 @@ app.get(
           f.flag_type,
           f.severity,
           f.status,
-          f.details,
+          f.reason AS details,
           f.created_at,
-          f.updated_at
+          f.reviewed_at AS updated_at
         FROM fraud_flags f
         LEFT JOIN users u ON u.id = f.user_id
         ORDER BY
@@ -3177,7 +3177,7 @@ app.post(
       const updated = await client.query(
         `
         UPDATE fraud_flags
-        SET status = $2, updated_at = NOW()
+        SET status = $2, reviewed_at = NOW()
         WHERE id = $1
         RETURNING *
         `,

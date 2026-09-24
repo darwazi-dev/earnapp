@@ -881,8 +881,28 @@ async function loadWithdrawalMethods() {
       const option = document.createElement('option');
       option.value = String(method.code || '');
       option.textContent = String(method.name || '');
+      option.dataset.accountLabel = String(method.accountLabel || '');
+      option.dataset.accountPlaceholder = String(method.accountPlaceholder || '');
+      option.dataset.accountType = String(method.accountType || 'text');
       select.appendChild(option);
     });
+
+    const syncAccountField = () => {
+      const selected = select.options[select.selectedIndex];
+      const input = el('wd-account');
+      const label = el('wd-account-label');
+      if (!input || !label) return;
+
+      label.textContent =
+        selected?.dataset.accountLabel || 'نمبر حساب / شماره تماس';
+      input.placeholder =
+        selected?.dataset.accountPlaceholder || 'شماره حساب یا شماره تماس';
+      input.inputMode =
+        selected?.dataset.accountType === 'phone' ? 'tel' : 'text';
+    };
+
+    select.addEventListener('change', syncAccountField);
+    syncAccountField();
   } catch (error) {
     select.innerHTML = '<option value="">دریافت روش‌ها ناموفق بود</option>';
     select.disabled = true;

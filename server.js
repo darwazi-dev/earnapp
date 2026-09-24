@@ -3840,6 +3840,8 @@ app.get('/api/admin/identity-verifications', adminRequired, async (req, res) => 
               (iv.document_image IS NOT NULL) AS has_document_image,
               (iv.selfie_image IS NOT NULL) AS has_selfie_image,
               iv.status, iv.rejection_reason, iv.submitted_at, iv.reviewed_at,
+              iv.metadata->>'document_name' AS document_name,
+              COALESCE((iv.metadata->>'name_match')::boolean, FALSE) AS name_match,
               u.name AS user_name, u.phone AS user_phone
        FROM identity_verifications iv
        JOIN users u ON u.id = iv.user_id
@@ -3914,6 +3916,19 @@ app.post('/api/admin/identity-verifications/:id/review', adminRequired, sensitiv
     if (verification.status !== 'UNDER_REVIEW') {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'این درخواست قبلاً بررسی شده است' });
+    }
+
+    if (
+      decision === 'VERIFIED' &&
+      (
+        verification.metadata?.name_match !== true ||
+        !String(verification.metadata?.document_name || '').trim()
+      )
+    ) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        error: 'تطبیق نام حساب با نام مدرک تایید نشده است'
+      });
     }
 
     await client.query(

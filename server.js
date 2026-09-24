@@ -296,7 +296,14 @@ async function getWallet(userId, client = pool) {
 // AUTH
 // =====================================================
 
-function authRequired(req, res, next) {
+function userSessionKey(passwordHash) {
+  return crypto
+    .createHash('sha256')
+    .update(String(passwordHash || ''))
+    .digest('hex');
+}
+
+async function authRequired(req, res, next) {
   const header = req.headers.authorization || '';
 
   const token =
@@ -320,12 +327,36 @@ function authRequired(req, res, next) {
       }
     );
 
-    if (decoded.type !== 'USER_SESSION' || !decoded.userId) {
+    if (
+      decoded.type !== 'USER_SESSION' ||
+      !decoded.userId ||
+      !decoded.sessionKey
+    ) {
       throw new Error('Invalid user session');
     }
 
-    req.userId = String(decoded.userId);
+    const sessionResult = await pool.query(
+      `SELECT password_hash, status
+       FROM users
+       WHERE id = $1
+       LIMIT 1`,
+      [String(decoded.userId)]
+    );
 
+    const sessionUser = sessionResult.rows[0];
+
+    if (
+      !sessionUser ||
+      sessionUser.status !== 'ACTIVE' ||
+      !safeCompare(
+        decoded.sessionKey,
+        userSessionKey(sessionUser.password_hash)
+      )
+    ) {
+      throw new Error('Revoked user session');
+    }
+
+    req.userId = String(decoded.userId);
     next();
   } catch {
     return res.status(401).json({
@@ -1091,7 +1122,8 @@ app.post('/api/register',
     const token = jwt.sign(
       {
         userId: String(user.id),
-        type: 'USER_SESSION'
+        type: 'USER_SESSION',
+        sessionKey: userSessionKey(passwordHash)
       },
       JWT_SECRET,
       {
@@ -1200,7 +1232,8 @@ app.post('/api/login',
     const token = jwt.sign(
       {
         userId: String(user.id),
-        type: 'USER_SESSION'
+        type: 'USER_SESSION',
+        sessionKey: userSessionKey(user.password_hash)
       },
       JWT_SECRET,
       {

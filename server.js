@@ -4110,7 +4110,29 @@ app.post(
       );
 
       const processingRow = processingDetails.rows[0];
-      const payoutProvider = getPayoutProvider(processingRow?.method);
+
+      if (!processingRow) {
+        throw new Error('Withdrawal processing details missing');
+      }
+
+      const blockingFraud = await client.query(
+        `
+        SELECT 1
+        FROM fraud_flags
+        WHERE
+          user_id = $1
+          AND severity IN ('HIGH', 'CRITICAL')
+          AND status IN ('OPEN', 'UNDER_REVIEW')
+        LIMIT 1
+        `,
+        [processingRow.user_id]
+      );
+
+      if (blockingFraud.rows.length) {
+        throw new Error('Withdrawal blocked by open fraud review');
+      }
+
+      const payoutProvider = getPayoutProvider(processingRow.method);
       const payoutPlan = await payoutProvider.initiate({
         withdrawal_id: withdrawal.withdrawal_id,
         amount_minor: processingRow?.amount_minor,

@@ -366,7 +366,7 @@ async function loadDashboard(){
           ${escapeHtml(Number(stats.providerRevenueUsd || 0).toFixed(4))}
         </div>
         <div class="label">
-          درآمد ناخالص ثبت‌شده از CPX
+          درآمد CPX — Production
         </div>
       </div>
 
@@ -375,7 +375,7 @@ async function loadDashboard(){
           ${escapeHtml(stats.userEarnings || 0)} ؋
         </div>
         <div class="label">
-          سهم ثبت‌شده کاربران
+          سهم کاربران — Production
         </div>
       </div>
 
@@ -384,7 +384,7 @@ async function loadDashboard(){
           ${escapeHtml(Number(stats.platformShareUsd || 0).toFixed(4))} USD
         </div>
         <div class="label">
-          سهم محاسبه‌شده پلتفرم
+          سهم پلتفرم — Production
         </div>
       </div>
 
@@ -393,7 +393,7 @@ async function loadDashboard(){
           ${escapeHtml(stats.completedEarnings || 0)}
         </div>
         <div class="label">
-          تراکنش درآمد معتبر
+          تراکنش درآمد Production
         </div>
       </div>
     `;

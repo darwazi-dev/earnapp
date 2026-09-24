@@ -333,6 +333,22 @@ td{
     </div>
 
     <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
+        <div>
+          <h3 style="margin:0 0 5px">تسویه درآمد CPX</h3>
+          <div style="font-size:12px;color:var(--muted)">فقط پس از تطبیق با داشبورد/صورتحساب CPX تایید شود. تایید، قابل ممیزی ثبت می‌شود.</div>
+        </div>
+        <button class="btn-primary" id="refreshCpxSettlementsBtn">بروزرسانی</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>کاربر</th><th>CPX Transaction</th><th>Publisher USD</th><th>پاداش کاربر</th><th>تاریخ</th><th>عملیات</th></tr></thead>
+          <tbody id="cpxSettlementTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
 
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
         <h3 style="margin:0">درخواست‌های برداشت</h3>

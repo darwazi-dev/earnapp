@@ -3879,22 +3879,10 @@ app.post(
         ]
       );
 
-      await client.query(
-        `
-        UPDATE wallets
-        SET
-          available_balance_minor =
-            available_balance_minor + $2,
-          updated_at = NOW()
-        WHERE user_id = $1
-        `,
-        [
-          withdrawal.user_id,
-          Number(
-            withdrawal.amount_minor
-          )
-        ]
-      );
+      const refundAmount = Number(withdrawal.amount_minor);
+      if (!Number.isSafeInteger(refundAmount) || refundAmount <= 0) {
+        throw new Error('Invalid withdrawal refund amount');
+      }
 
       const txResult =
         await client.query(
@@ -3916,6 +3904,29 @@ app.post(
 
       if (!txResult.rows.length) {
         throw new Error('Withdrawal transaction missing');
+      }
+
+      const refundedWallet = await client.query(
+        `
+        UPDATE wallets
+        SET
+          available_balance_minor =
+            available_balance_minor + $2,
+          updated_at = NOW()
+        WHERE
+          user_id = $1
+          AND available_balance_minor <= $3
+        RETURNING id
+        `,
+        [
+          withdrawal.user_id,
+          refundAmount,
+          Number.MAX_SAFE_INTEGER - refundAmount
+        ]
+      );
+
+      if (!refundedWallet.rows.length) {
+        throw new Error('Wallet refund failed or exceeds safe integer range');
       }
 
       {

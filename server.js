@@ -3737,6 +3737,26 @@ app.post(
         });
       }
 
+      const blockingFraud = await client.query(
+        `
+        SELECT 1
+        FROM fraud_flags
+        WHERE
+          user_id = $1
+          AND severity IN ('HIGH', 'CRITICAL')
+          AND status IN ('OPEN', 'UNDER_REVIEW')
+        LIMIT 1
+        `,
+        [withdrawal.user_id]
+      );
+
+      if (blockingFraud.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'این برداشت به دلیل هشدار امنیتی باز قابل تایید نیست'
+        });
+      }
+
       await client.query(
         `
         UPDATE withdrawals

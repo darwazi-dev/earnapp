@@ -4670,6 +4670,17 @@ app.post(
         method: processingRow?.method
       });
 
+      if (
+        processingRow.method === 'HESABPAY' &&
+        (payoutPlan.mode === 'MANUAL_FALLBACK' || payoutPlan.status === 'NOT_CONFIGURED')
+      ) {
+        await client.query('ROLLBACK');
+        return res.status(503).json({
+          error: 'پرداخت واقعی HesabPay هنوز پیکربندی نشده است؛ درخواست به‌صورت کاذب وارد Processing نمی‌شود',
+          code: 'PAYOUT_PROVIDER_NOT_CONFIGURED'
+        });
+      }
+
       await client.query(
         `
         INSERT INTO admin_actions (

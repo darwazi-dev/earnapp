@@ -4296,22 +4296,33 @@ app.post(
         ]
       );
 
-      await client.query(
+      const paidAmount = Number(withdrawal.amount_minor);
+      if (!Number.isSafeInteger(paidAmount) || paidAmount <= 0) {
+        throw new Error('Invalid paid withdrawal amount');
+      }
+
+      const paidWallet = await client.query(
         `
         UPDATE wallets
         SET
           lifetime_withdrawals_minor =
             lifetime_withdrawals_minor + $2,
           updated_at = NOW()
-        WHERE user_id = $1
+        WHERE
+          user_id = $1
+          AND lifetime_withdrawals_minor <= $3
+        RETURNING id
         `,
         [
           withdrawal.user_id,
-          Number(
-            withdrawal.amount_minor
-          )
+          paidAmount,
+          Number.MAX_SAFE_INTEGER - paidAmount
         ]
       );
+
+      if (!paidWallet.rows.length) {
+        throw new Error('Lifetime withdrawal total exceeds safe integer range');
+      }
 
       await client.query(
         `

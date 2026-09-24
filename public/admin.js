@@ -381,6 +381,15 @@ async function loadDashboard(){
 
       <div class="stat">
         <div class="num">
+          ${escapeHtml(Number(stats.platformShareUsd || 0).toFixed(4))} USD
+        </div>
+        <div class="label">
+          سهم محاسبه‌شده پلتفرم
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="num">
           ${escapeHtml(stats.completedEarnings || 0)}
         </div>
         <div class="label">

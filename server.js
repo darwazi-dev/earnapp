@@ -2298,10 +2298,33 @@ app.get(
       );
 
       res.json({
-        methods: result.rows.map(row => ({
-          code: row.code,
-          name: row.name
-        }))
+        methods: result.rows.map(row => {
+          const code = String(row.code || '').toUpperCase();
+          const field =
+            code === 'HESABPAY'
+              ? {
+                  accountLabel: 'شماره موبایل حساب HesabPay',
+                  accountPlaceholder: 'شماره موبایل ثبت‌شده در HesabPay',
+                  accountType: 'phone'
+                }
+              : code === 'M-PAISA' || code === 'MPAISA'
+              ? {
+                  accountLabel: 'شماره موبایل M-Paisa',
+                  accountPlaceholder: 'شماره موبایل ثبت‌شده در M-Paisa',
+                  accountType: 'phone'
+                }
+              : {
+                  accountLabel: 'نمبر حساب / شماره تماس',
+                  accountPlaceholder: 'مشخصات حساب دریافت‌کننده',
+                  accountType: 'text'
+                };
+
+          return {
+            code: row.code,
+            name: row.name,
+            ...field
+          };
+        })
       });
     } catch (error) {
       console.error('Withdrawal methods failed:', error);

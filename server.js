@@ -106,6 +106,14 @@ const pool = new Pool({
   connectionString: DATABASE_URL
 });
 
+async function ensureRuntimeSchema() {
+  await pool.query(
+    `ALTER TABLE identity_verifications
+       ADD COLUMN IF NOT EXISTS metadata JSONB
+       NOT NULL DEFAULT '{}'::jsonb`
+  );
+}
+
 // =====================================================
 // MIDDLEWARE
 // =====================================================
@@ -5038,8 +5046,18 @@ app.use((error, req, res, next) => {
 // START
 // =====================================================
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(
-    `Kariyab server running on port ${PORT}`
-  );
-});
+async function startServer() {
+  try {
+    await ensureRuntimeSchema();
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(
+        `Kariyab server running on port ${PORT}`
+      );
+    });
+  } catch (error) {
+    console.error('FATAL: runtime schema check failed', error);
+    process.exit(1);
+  }
+}
+
+startServer();

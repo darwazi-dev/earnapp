@@ -3030,6 +3030,9 @@ app.get(
   async (req, res) => {
     try {
       const userId = String(req.params.userId);
+      if (!/^\\d+$/.test(userId)) {
+        return res.status(400).json({ error: 'شناسه کاربر معتبر نیست' });
+      }
 
       const [wallet, transactions, ledger, withdrawals] = await Promise.all([
         pool.query(

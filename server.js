@@ -572,18 +572,20 @@ async function promotePendingEarnings(userId) {
           $1,
           $2,
           'EARNING_APPROVED',
-          0,
+          $3,
           'AFN',
           'APPROVED',
-          $3::jsonb
+          $4::jsonb
         )
         `,
         [
           userId,
           transaction.id,
+          amount,
           JSON.stringify({
             event: 'pending_to_available',
-            amount_minor: amount
+            from_balance: 'PENDING',
+            to_balance: 'AVAILABLE'
           })
         ]
       );

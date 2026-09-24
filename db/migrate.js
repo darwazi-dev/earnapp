@@ -105,6 +105,9 @@ async function migrate() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      CREATE INDEX IF NOT EXISTS idx_devices_device_key
+        ON devices(device_key);
+
       CREATE TABLE IF NOT EXISTS providers (
         id BIGSERIAL PRIMARY KEY,
         code VARCHAR(50) NOT NULL UNIQUE,

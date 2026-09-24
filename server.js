@@ -993,11 +993,22 @@ app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
 
+    const providerResult = await pool.query(
+      `SELECT 1 FROM providers WHERE code = 'CPX' LIMIT 1`
+    );
+
+    const methodResult = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM withdrawal_methods WHERE enabled = TRUE`
+    );
+
     res.json({
       ok: true,
       database: 'postgresql',
       checks: {
         cpxConfigured: Boolean(CPX_SECURE_HASH),
+        cpxAppIdConfigured: Boolean(CPX_APP_ID),
+        cpxProviderReady: providerResult.rows.length === 1,
+        withdrawalMethodsEnabled: Number(methodResult.rows[0]?.count || 0),
         jwtConfigured: Boolean(JWT_SECRET),
         adminConfigured: Boolean(ADMIN_PASSWORD)
       }

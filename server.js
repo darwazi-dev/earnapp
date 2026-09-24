@@ -1639,7 +1639,7 @@ app.get(
               WHERE user_id = $1
                 AND flag_type = 'HIGH_VALUE_PROVIDER_EVENT'
                 AND status IN ('OPEN', 'UNDER_REVIEW')
-                AND details->>'provider_transaction_id' = $2
+                AND metadata->>'provider_transaction_id' = $2
               LIMIT 1
               `,
               [user.id, transId]
@@ -1649,10 +1649,11 @@ app.get(
               await client.query(
                 `
                 INSERT INTO fraud_flags (
-                  user_id, flag_type, severity, status, details
+                  user_id, flag_type, severity, status, reason, metadata
                 )
                 VALUES (
-                  $1, 'HIGH_VALUE_PROVIDER_EVENT', 'HIGH', 'OPEN', $2::jsonb
+                  $1, 'HIGH_VALUE_PROVIDER_EVENT', 'HIGH', 'OPEN',
+                  'High-value provider event requires review', $2::jsonb
                 )
                 `,
                 [
@@ -1861,7 +1862,7 @@ app.get(
               WHERE user_id = $1
                 AND flag_type = 'APPROVED_EARNING_REVERSED'
                 AND status IN ('OPEN', 'UNDER_REVIEW')
-                AND details->>'provider_transaction_id' = $2
+                AND metadata->>'provider_transaction_id' = $2
               LIMIT 1
               `,
               [user.id, transId]
@@ -1871,10 +1872,11 @@ app.get(
               await client.query(
                 `
                 INSERT INTO fraud_flags (
-                  user_id, flag_type, severity, status, details
+                  user_id, flag_type, severity, status, reason, metadata
                 )
                 VALUES (
-                  $1, 'APPROVED_EARNING_REVERSED', 'HIGH', 'OPEN', $2::jsonb
+                  $1, 'APPROVED_EARNING_REVERSED', 'HIGH', 'OPEN',
+                  'Approved earning reversed by provider', $2::jsonb
                 )
                 `,
                 [

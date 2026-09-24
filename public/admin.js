@@ -145,7 +145,7 @@ async function adminLogin(){
       .getElementById('dashboard')
       .classList.remove('hidden');
 
-    await loadDashboard();
+    await Promise.all([loadDashboard(),loadCpxSettlements()]);
 
   }catch(e){
 
@@ -239,6 +239,60 @@ function renderActions(w){
   }
 
   return '—';
+}
+
+async function loadCpxSettlements(){
+  const table=document.getElementById('cpxSettlementTable');
+  if(!table) return;
+
+  try{
+    const data=await adminApi('/api/admin/cpx/pending-settlements');
+    const rows=Array.isArray(data.settlements) ? data.settlements : [];
+
+    if(!rows.length){
+      table.innerHTML='<tr><td colspan="6">تراکنش CPX در انتظار تایید تسویه وجود ندارد.</td></tr>';
+      return;
+    }
+
+    table.innerHTML=rows.map(row=>{
+      const id=safeNumericId(row.id);
+      return '<tr>'+
+        '<td>'+escapeHtml(row.userId)+'</td>'+
+        '<td>'+escapeHtml(row.providerTransactionId || '—')+'</td>'+
+        '<td>$'+escapeHtml(Number(row.publisherAmountUsd || 0).toFixed(4))+'</td>'+
+        '<td>؋'+escapeHtml(Number(row.amount || 0).toFixed(2))+'</td>'+
+        '<td>'+escapeHtml(row.createdAt ? new Date(row.createdAt).toLocaleString() : '—')+'</td>'+
+        '<td><button class="btn-approve cpx-settlement-verify" data-id="'+id+'">تایید تسویه</button></td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){
+    table.innerHTML='<tr><td colspan="6">'+escapeHtml(e.message)+'</td></tr>';
+  }
+}
+
+async function verifyCpxSettlement(id){
+  const reference=prompt('مرجع تطبیق CPX را وارد کنید (Invoice / Dashboard reference):');
+  if(reference===null) return;
+
+  const clean=reference.trim();
+  if(!clean){
+    return showNotice('مرجع تایید تسویه الزامی است.','error');
+  }
+
+  if(!confirm('این تراکنش را با داشبورد یا صورتحساب CPX تطبیق داده‌اید؟')) return;
+
+  try{
+    const result=await adminApi('/api/admin/cpx/settlements/'+encodeURIComponent(id)+'/verify',{
+      method:'POST',
+      body:JSON.stringify({reference:clean})
+    });
+    showNotice(result.promoted
+      ? 'تسویه تایید شد و درآمد واجد شرایط به موجودی قابل برداشت منتقل شد.'
+      : 'تسویه تایید شد؛ انتقال به موجودی پس از پایان دوره Hold انجام می‌شود.');
+    await Promise.all([loadCpxSettlements(),loadDashboard()]);
+  }catch(e){
+    showNotice(e.message,'error');
+  }
 }
 
 async function loadDashboard(){
@@ -640,6 +694,13 @@ document.getElementById('refreshDashboardBtn')?.addEventListener('click', loadDa
 document.getElementById('refreshFraudBtn')?.addEventListener('click', loadFraudFlags);
 document.getElementById('refreshSupportBtn')?.addEventListener('click', loadSupportTickets);
 document.getElementById('refreshIdentityBtn')?.addEventListener('click', loadIdentityVerifications);
+document.getElementById('refreshCpxSettlementsBtn')?.addEventListener('click', loadCpxSettlements);
+document.getElementById('cpxSettlementTable')?.addEventListener('click', event=>{
+  const button=event.target.closest('.cpx-settlement-verify');
+  if(!button) return;
+  const id=safeNumericId(button.dataset.id);
+  if(id !== '0') verifyCpxSettlement(id);
+});
 
 document.getElementById('identityTable')?.addEventListener('click', async (event)=>{
   const imageButton=event.target.closest('.identity-image');

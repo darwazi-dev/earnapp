@@ -306,6 +306,33 @@ async function loadDashboard(){
           پرداخت‌شده
         </div>
       </div>
+
+      <div class="stat">
+        <div class="num">
+          ${escapeHtml(Number(stats.providerRevenueUsd || 0).toFixed(4))}
+        </div>
+        <div class="label">
+          درآمد ناخالص ثبت‌شده از CPX
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="num">
+          ${escapeHtml(stats.userEarnings || 0)} ؋
+        </div>
+        <div class="label">
+          سهم ثبت‌شده کاربران
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="num">
+          ${escapeHtml(stats.completedEarnings || 0)}
+        </div>
+        <div class="label">
+          تراکنش درآمد معتبر
+        </div>
+      </div>
     `;
 
 

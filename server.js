@@ -2364,6 +2364,14 @@ app.post(
       });
     }
 
+    if (methodCode.length > 50 || !/^[A-Za-z0-9_-]+$/.test(methodCode)) {
+      return res.status(400).json({ error: 'روش برداشت معتبر نیست' });
+    }
+
+    if (account.length < 3 || account.length > 200 || /[\u0000-\u001F\u007F]/.test(account)) {
+      return res.status(400).json({ error: 'مشخصات حساب دریافت‌کننده معتبر نیست' });
+    }
+
     const client =
       await pool.connect();
 

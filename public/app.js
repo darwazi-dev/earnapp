@@ -6,6 +6,17 @@ let TOKEN = localStorage.getItem('token') || null;
 let USER_NAME = localStorage.getItem('userName') || '';
 let PROFILE_DATA = null;
 
+function getDeviceKey() {
+  let key = localStorage.getItem('kariyabDeviceKey');
+  if (!key) {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    key = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem('kariyabDeviceKey', key);
+  }
+  return key;
+}
+
 function el(id) {
   return document.getElementById(id);
 }
@@ -63,6 +74,7 @@ function formatMoney(value) {
 async function api(path, opts = {}) {
   const headers = {
     'Content-Type': 'application/json',
+    'X-Kariyab-Device': getDeviceKey(),
     ...(opts.headers || {})
   };
 

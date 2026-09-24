@@ -105,8 +105,19 @@ async function migrate() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
 
+      DELETE FROM devices a
+      USING devices b
+      WHERE a.id < b.id
+        AND a.user_id = b.user_id
+        AND a.device_key = b.device_key
+        AND a.device_key IS NOT NULL;
+
       CREATE INDEX IF NOT EXISTS idx_devices_device_key
         ON devices(device_key);
+
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_devices_user_device
+        ON devices(user_id, device_key)
+        WHERE device_key IS NOT NULL;
 
       CREATE TABLE IF NOT EXISTS providers (
         id BIGSERIAL PRIMARY KEY,

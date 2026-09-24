@@ -3478,11 +3478,15 @@ app.get('/api/admin/identity-verifications', adminRequired, async (req, res) => 
 app.get('/api/admin/identity-verifications/:id/evidence/:kind', adminRequired, sensitiveLimiter, async (req, res) => {
   const kind = String(req.params.kind || '').toLowerCase();
   const column = kind === 'document' ? 'document_image' : kind === 'selfie' ? 'selfie_image' : null;
+  const verificationRowId = String(req.params.id || '').trim();
+  if (!/^\d+$/.test(verificationRowId)) {
+    return res.status(400).json({ error: 'شناسه احراز هویت معتبر نیست' });
+  }
   if (!column) return res.status(400).json({ error: 'نوع تصویر معتبر نیست' });
   try {
     const result = await pool.query(
       `SELECT ${column} AS image FROM identity_verifications WHERE id = $1 LIMIT 1`,
-      [req.params.id]
+      [verificationRowId]
     );
     if (!result.rows.length || !result.rows[0].image) {
       return res.status(404).json({ error: 'تصویر موجود نیست' });
@@ -3499,6 +3503,10 @@ app.get('/api/admin/identity-verifications/:id/evidence/:kind', adminRequired, s
 app.post('/api/admin/identity-verifications/:id/review', adminRequired, sensitiveLimiter, async (req, res) => {
   const decision = String(req.body?.decision || '').trim().toUpperCase();
   const reason = String(req.body?.reason || '').trim().slice(0, 1000);
+  const verificationRowId = String(req.params.id || '').trim();
+  if (!/^\d+$/.test(verificationRowId)) {
+    return res.status(400).json({ error: 'شناسه احراز هویت معتبر نیست' });
+  }
 
   if (!['VERIFIED', 'REJECTED'].includes(decision)) {
     return res.status(400).json({ error: 'تصمیم بررسی معتبر نیست' });
@@ -3512,7 +3520,7 @@ app.post('/api/admin/identity-verifications/:id/review', adminRequired, sensitiv
     await client.query('BEGIN');
     const current = await client.query(
       'SELECT * FROM identity_verifications WHERE id = $1 FOR UPDATE',
-      [req.params.id]
+      [verificationRowId]
     );
     if (!current.rows.length) {
       await client.query('ROLLBACK');

@@ -2446,6 +2446,17 @@ app.post(
       const settings =
         await getRuntimeSettings(client);
 
+      // Lock the wallet before checking for an active withdrawal, so two
+      // concurrent requests from the same user cannot both pass the check.
+      const lockedWallet = await client.query(
+        `SELECT id FROM wallets WHERE user_id = $1 FOR UPDATE`,
+        [req.userId]
+      );
+      if (!lockedWallet.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'کیف پول یافت نشد' });
+      }
+
       const existingWithdrawal = await client.query(
         `
         SELECT withdrawal_id, status

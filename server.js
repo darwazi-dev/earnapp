@@ -566,12 +566,15 @@ async function promotePendingEarnings(userId) {
       WHERE
         user_id = $1
         AND pending_balance_minor >= $2
+        AND available_balance_minor <= $3
+        AND lifetime_earnings_minor <= $3
 
       RETURNING *
       `,
       [
         userId,
-        totalMinor
+        totalMinor,
+        Number.MAX_SAFE_INTEGER - totalMinor
       ]
     );
 

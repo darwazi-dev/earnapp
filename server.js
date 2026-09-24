@@ -2432,6 +2432,7 @@ app.get('/api/identity-verification', authRequired, async (req, res) => {
 app.post('/api/identity-verification', authRequired, sensitiveLimiter, async (req, res) => {
   const documentType = String(req.body?.documentType || '').trim().toUpperCase();
   const documentNumber = String(req.body?.documentNumber || '').replace(/\s+/g, '').trim();
+  const documentName = String(req.body?.documentName || '').replace(/\s+/g, ' ').trim();
   const documentImage = String(req.body?.documentImage || '');
   const selfieImage = String(req.body?.selfieImage || '');
 
@@ -2445,6 +2446,9 @@ app.post('/api/identity-verification', authRequired, sensitiveLimiter, async (re
   ) {
     return res.status(400).json({ error: 'شماره مدرک معتبر نیست' });
   }
+  if (documentName.length < 3 || documentName.length > 120 || !/^[\p{L}\p{M} .'-]+$/u.test(documentName)) {
+    return res.status(400).json({ error: 'نام مطابق مدرک هویتی معتبر نیست' });
+  }
   if (!validIdentityImage(documentImage) || !validIdentityImage(selfieImage)) {
     return res.status(400).json({ error: 'تصویر مدرک یا سلفی معتبر نیست یا حجم آن زیاد است' });
   }
@@ -2452,6 +2456,24 @@ app.post('/api/identity-verification', authRequired, sensitiveLimiter, async (re
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    const accountResult = await client.query(
+      `SELECT name FROM users WHERE id = $1 AND status = 'ACTIVE' LIMIT 1`,
+      [req.userId]
+    );
+    const accountName = String(accountResult.rows[0]?.name || '').replace(/\s+/g, ' ').trim();
+    const normalizeName = value => String(value || '')
+      .normalize('NFKC')
+      .toLocaleLowerCase()
+      .replace(/[\u200c\u200d]/g, '')
+      .replace(/[^\p{L}\p{M}]/gu, '');
+
+    if (!accountName || normalizeName(accountName) !== normalizeName(documentName)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'نام درج‌شده در حساب باید با نام روی مدرک هویتی یکسان باشد'
+      });
+    }
 
     const existing = await client.query(
       `SELECT id, status
@@ -2478,9 +2500,10 @@ app.post('/api/identity-verification', authRequired, sensitiveLimiter, async (re
     await client.query(
       `INSERT INTO identity_verifications
         (verification_id, user_id, document_type, document_number_last4,
-         document_image, selfie_image, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'UNDER_REVIEW')`,
-      [verificationId, req.userId, documentType, last4, documentImage, selfieImage]
+         document_image, selfie_image, status, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, 'UNDER_REVIEW',
+               jsonb_build_object('document_name', $7, 'account_name', $8, 'name_match', true))`,
+      [verificationId, req.userId, documentType, last4, documentImage, selfieImage, documentName, accountName]
     );
 
     await client.query(

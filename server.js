@@ -5159,6 +5159,7 @@ app.post(
         `SELECT
            w.user_id,
            w.amount_minor,
+           w.account_details,
            wm.code AS method
          FROM withdrawals w
          LEFT JOIN withdrawal_methods wm ON wm.id = w.method_id
@@ -5194,16 +5195,17 @@ app.post(
       const payoutPlan = await payoutProvider.initiate({
         withdrawal_id: withdrawal.withdrawal_id,
         amount_minor: processingRow?.amount_minor,
+        account_details: processingRow?.account_details,
         method: processingRow?.method
       });
 
       if (
-        processingRow.method === 'HESABPAY' &&
+        ['HESABPAY', 'MOMO', 'M-PAISA'].includes(String(processingRow.method || '').toUpperCase()) &&
         (payoutPlan.mode === 'MANUAL_FALLBACK' || payoutPlan.status === 'NOT_CONFIGURED')
       ) {
         await client.query('ROLLBACK');
         return res.status(503).json({
-          error: 'پرداخت واقعی HesabPay هنوز پیکربندی نشده است؛ درخواست به‌صورت کاذب وارد Processing نمی‌شود',
+          error: 'پرداخت واقعی این روش هنوز پیکربندی نشده است؛ درخواست به‌صورت کاذب وارد Processing نمی‌شود',
           code: 'PAYOUT_PROVIDER_NOT_CONFIGURED'
         });
       }
@@ -5229,7 +5231,8 @@ app.post(
             withdrawal_id: withdrawal.withdrawal_id,
             payout_provider: payoutPlan.provider,
             payout_mode: payoutPlan.mode,
-            payout_status: payoutPlan.status
+            payout_status: payoutPlan.status,
+            payout_reference: payoutPlan.referenceId || null
           })
         ]
       );
@@ -5246,7 +5249,15 @@ app.post(
       }
 
       await client.query('COMMIT');
-      res.json({ ok: true });
+      res.json({
+        ok: true,
+        payout: {
+          provider: payoutPlan.provider,
+          mode: payoutPlan.mode,
+          status: payoutPlan.status,
+          referenceId: payoutPlan.referenceId || null
+        }
+      });
     } catch (error) {
       await client.query('ROLLBACK');
 

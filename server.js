@@ -1298,7 +1298,6 @@ app.get('/api/health', async (req, res) => {
         cpxConfigured: Boolean(CPX_SECURE_HASH),
         cpxAppIdConfigured: Boolean(CPX_APP_ID),
         cpxProviderReady: providerResult.rows.length === 1,
-        networkRiskConfigured: Boolean(IPQS_API_KEY),
         phoneOtpConfigured: vonageConfigured(),
         withdrawalMethodsEnabled: Number(methodResult.rows[0]?.count || 0),
         jwtConfigured: Boolean(JWT_SECRET),
@@ -1429,19 +1428,10 @@ app.post('/api/register',
       console.error('Registration device signal recording failed:', error.message);
     });
 
-    const networkRisk = await assessNetworkRisk(req);
-    const networkWarning = networkRisk.detected
-      ? {
-          code: 'VPN_OR_PROXY_DETECTED',
-          message: 'VPN یا Proxy شناسایی شد. برای استفاده از فرصت‌های درآمدی آن را خاموش کنید.'
-        }
-      : null;
-
     res.json({
       token,
       name: user.name,
-      balance: 0,
-      networkWarning
+      balance: 0
     });
   } catch (error) {
     await client.query('ROLLBACK');
@@ -1551,22 +1541,13 @@ app.post('/api/login',
       console.error('Device signal recording failed:', error.message);
     });
 
-    const networkRisk = await assessNetworkRisk(req);
-    const networkWarning = networkRisk.detected
-      ? {
-          code: 'VPN_OR_PROXY_DETECTED',
-          message: 'VPN یا Proxy شناسایی شد. برای استفاده از فرصت‌های درآمدی آن را خاموش کنید.'
-        }
-      : null;
-
     res.json({
       token,
       name: user.name,
       balance:
         minorToAfn(
           user.available_balance_minor
-        ),
-      networkWarning
+        )
     });
   } catch (error) {
     console.error(
@@ -1796,22 +1777,6 @@ app.get(
     }
 
     try {
-      const networkRisk = await assessNetworkRisk(req);
-      if (networkRisk.unavailable) {
-        console.warn('Earning access blocked because network risk verification is unavailable:', networkRisk.reason || 'UNKNOWN');
-        return res.status(503).json({
-          error: 'بررسی امنیت اتصال فعلاً انجام نشد. کمی بعد دوباره تلاش کنید.',
-          code: 'NETWORK_RISK_UNAVAILABLE'
-        });
-      }
-
-      if (networkRisk.detected) {
-        return res.status(403).json({
-          error: 'VPN یا Proxy شناسایی شد. برای استفاده از فرصت‌های درآمدی آن را خاموش کرده و دوباره تلاش کنید.',
-          code: 'VPN_OR_PROXY_DETECTED'
-        });
-      }
-
       const blockingFraud = await pool.query(
         `
         SELECT 1

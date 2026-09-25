@@ -91,6 +91,7 @@ const OTP_BRAND = String(process.env.OTP_BRAND || 'Kariyab').trim();
 
 const CPX_APP_ID = String(process.env.CPX_APP_ID || '36387').trim();
 const CPX_SECURE_HASH = String(process.env.CPX_SECURE_HASH || '').trim();
+const ADGEM_POSTBACK_KEY = String(process.env.ADGEM_POSTBACK_KEY || '').trim();
 const IPQS_API_KEY = String(process.env.IPQS_API_KEY || '').trim();
 
 const DEFAULT_AFN_PER_USD = String(process.env.AFN_PER_USD || '68');
@@ -158,13 +159,27 @@ async function ensureRuntimeSchema() {
        ON devices(user_id, device_key)
        WHERE device_key IS NOT NULL`
   );
+
+  await pool.query(
+    `INSERT INTO providers (code, name, enabled)
+     VALUES ('ADGEM', 'AdGem', TRUE)
+     ON CONFLICT (code)
+     DO UPDATE SET name = EXCLUDED.name, enabled = TRUE, updated_at = NOW()`
+  );
 }
 
 // =====================================================
 // MIDDLEWARE
 // =====================================================
 
-app.use(express.json({ limit: '350kb' }));
+app.use(express.json({
+  limit: '350kb',
+  verify: (req, _res, buf) => {
+    if (req.originalUrl === '/api/adgem/postback') {
+      req.rawBody = Buffer.from(buf);
+    }
+  }
+}));
 app.use(express.urlencoded({ extended: false }));
 
 app.use(
@@ -2489,6 +2504,244 @@ app.get(
       return res
         .status(500)
         .send('error');
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// =====================================================
+// ADGEM POSTBACK V3
+// =====================================================
+
+app.post(
+  '/api/adgem/postback',
+  async (req, res) => {
+    if (!ADGEM_POSTBACK_KEY) {
+      return res.status(503).send('provider disabled');
+    }
+
+    const signature = String(req.get('Signature') || '').trim().toLowerCase();
+    const rawBody = req.rawBody;
+
+    if (!rawBody || !signature || !/^[a-f0-9]{64}$/.test(signature)) {
+      return res.status(400).send('invalid request');
+    }
+
+    const expectedSignature = crypto
+      .createHmac('sha256', ADGEM_POSTBACK_KEY)
+      .update(rawBody)
+      .digest('hex');
+
+    if (!safeCompare(signature, expectedSignature)) {
+      return res.status(401).send('invalid signature');
+    }
+
+    const requestId = String(req.body?.request_id || '').trim();
+    const timestamp = Number(req.body?.timestamp);
+    const data = req.body?.data && typeof req.body.data === 'object'
+      ? req.body.data
+      : {};
+
+    const userId = String(data.player_id || '').trim();
+    const conversionId = String(data.conversion_id || '').trim();
+    const payoutUsd = String(data.payout ?? '').trim();
+    const offerId = String(data.offer_id || '').trim();
+
+    if (
+      !requestId ||
+      !conversionId ||
+      !/^\d+$/.test(userId) ||
+      !/^\d+(\.\d+)?$/.test(payoutUsd) ||
+      !Number.isFinite(timestamp) ||
+      timestamp <= 0 ||
+      requestId.length > 255 ||
+      conversionId.length > 255 ||
+      userId.length > 32 ||
+      offerId.length > 255
+    ) {
+      return res.status(400).send('invalid payload');
+    }
+
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      await client.query(
+        'SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))',
+        ['ADGEM', conversionId]
+      );
+
+      const providerResult = await client.query(
+        `SELECT id, code
+         FROM providers
+         WHERE code = 'ADGEM' AND enabled = TRUE
+         LIMIT 1`
+      );
+
+      if (!providerResult.rows.length) {
+        throw new Error('AdGem provider missing');
+      }
+
+      const provider = providerResult.rows[0];
+
+      const userResult = await client.query(
+        `SELECT id, status
+         FROM users
+         WHERE id = $1
+         LIMIT 1`,
+        [userId]
+      );
+
+      const user = userResult.rows[0];
+
+      if (!user || user.status !== 'ACTIVE') {
+        await client.query('ROLLBACK');
+        return res.status(404).send('user not found');
+      }
+
+      const eventInsert = await client.query(
+        `INSERT INTO offer_events (
+           provider_id,
+           user_id,
+           provider_event_id,
+           event_type,
+           raw_payload,
+           validation_status,
+           received_at
+         )
+         VALUES ($1, $2, $3, 'COMPLETED', $4::jsonb, 'VALID', NOW())
+         ON CONFLICT (provider_id, provider_event_id)
+         DO NOTHING
+         RETURNING id`,
+        [
+          provider.id,
+          user.id,
+          requestId,
+          JSON.stringify(req.body)
+        ]
+      );
+
+      if (!eventInsert.rows.length) {
+        await client.query('COMMIT');
+        return res.status(200).send('OK');
+      }
+
+      const existing = await client.query(
+        `SELECT id
+         FROM transactions
+         WHERE provider_id = $1
+           AND provider_transaction_id = $2
+         LIMIT 1`,
+        [provider.id, conversionId]
+      );
+
+      if (!existing.rows.length) {
+        const settings = await getRuntimeSettings(client);
+        const rewardMinor = calculateProviderRewardMinor(
+          payoutUsd,
+          settings.afnPerUsd,
+          settings.revenueShare
+        );
+
+        if (rewardMinor <= 0) {
+          throw new Error('Invalid AdGem calculated reward');
+        }
+
+        const transactionId = publicId('ADGEM');
+
+        const txResult = await client.query(
+          `INSERT INTO transactions (
+             transaction_id,
+             user_id,
+             provider_id,
+             provider_transaction_id,
+             type,
+             amount_minor,
+             currency,
+             status,
+             metadata
+           )
+           VALUES ($1, $2, $3, $4, 'EARNING', $5, 'AFN', 'PENDING', $6::jsonb)
+           RETURNING id`,
+          [
+            transactionId,
+            user.id,
+            provider.id,
+            conversionId,
+            rewardMinor,
+            JSON.stringify({
+              provider: 'ADGEM',
+              amount_usd: payoutUsd,
+              offer_id: offerId,
+              request_id: requestId,
+              settlement_verified: false
+            })
+          ]
+        );
+
+        const tx = txResult.rows[0];
+
+        await client.query(
+          `INSERT INTO wallet_ledger (
+             user_id,
+             transaction_id,
+             entry_type,
+             amount_minor,
+             currency,
+             status,
+             metadata
+           )
+           VALUES ($1, $2, 'EARNING', $3, 'AFN', 'PENDING', $4::jsonb)`,
+          [
+            user.id,
+            tx.id,
+            rewardMinor,
+            JSON.stringify({
+              provider: 'ADGEM',
+              provider_transaction_id: conversionId
+            })
+          ]
+        );
+
+        const walletResult = await client.query(
+          `UPDATE wallets
+           SET pending_balance_minor = pending_balance_minor + $2,
+               updated_at = NOW()
+           WHERE user_id = $1
+             AND pending_balance_minor <= $3
+           RETURNING id`,
+          [user.id, rewardMinor, Number.MAX_SAFE_INTEGER - rewardMinor]
+        );
+
+        if (!walletResult.rows.length) {
+          throw new Error('AdGem pending wallet credit failed');
+        }
+
+        await client.query(
+          `INSERT INTO notifications (user_id, title, body)
+           VALUES ($1, 'درآمد AdGem ثبت شد', $2)`,
+          [
+            user.id,
+            `مبلغ ؋${(rewardMinor / 100).toFixed(2)} از AdGem ثبت شد و تا تایید تسویه در موجودی در حال بررسی می‌ماند.`
+          ]
+        );
+      }
+
+      await client.query(
+        `UPDATE offer_events
+         SET processed_at = NOW()
+         WHERE id = $1`,
+        [eventInsert.rows[0].id]
+      );
+
+      await client.query('COMMIT');
+      return res.status(200).send('OK');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('AdGem postback failed:', error);
+      return res.status(500).send('error');
     } finally {
       client.release();
     }

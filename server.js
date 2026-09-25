@@ -240,10 +240,16 @@ async function assessNetworkRisk(req) {
     } finally {
       clearTimeout(timer);
     }
-    if (!response.ok) return { configured: true, detected: false, unavailable: true };
+    if (!response.ok) {
+      console.warn('Network risk lookup HTTP error:', response.status);
+      return { configured: true, detected: false, unavailable: true, reason: 'HTTP_ERROR' };
+    }
 
     const data = await response.json();
-    if (data.success === false) return { configured: true, detected: false, unavailable: true };
+    if (data.success === false) {
+      console.warn('Network risk lookup rejected:', Array.isArray(data.errors) ? data.errors.join('; ') : data.message || 'unknown error');
+      return { configured: true, detected: false, unavailable: true, reason: 'PROVIDER_REJECTED' };
+    }
 
     const vpn = data.vpn === true || data.active_vpn === true;
     const proxy = data.proxy === true;
@@ -254,6 +260,9 @@ async function assessNetworkRisk(req) {
       vpn,
       proxy,
       tor,
+      requestId: String(data.request_id || '').slice(0, 120) || null,
+      countryCode: String(data.country_code || '').slice(0, 2) || null,
+      connectionType: String(data.connection_type || '').slice(0, 40) || null,
       fraudScore: Number.isFinite(Number(data.fraud_score)) ? Number(data.fraud_score) : null
     };
   } catch (error) {
@@ -1777,6 +1786,14 @@ app.get(
 
     try {
       const networkRisk = await assessNetworkRisk(req);
+      if (networkRisk.unavailable) {
+        console.warn('Earning access blocked because network risk verification is unavailable:', networkRisk.reason || 'UNKNOWN');
+        return res.status(503).json({
+          error: 'بررسی امنیت اتصال فعلاً انجام نشد. کمی بعد دوباره تلاش کنید.',
+          code: 'NETWORK_RISK_UNAVAILABLE'
+        });
+      }
+
       if (networkRisk.detected) {
         return res.status(403).json({
           error: 'VPN یا Proxy شناسایی شد. برای استفاده از فرصت‌های درآمدی آن را خاموش کرده و دوباره تلاش کنید.',

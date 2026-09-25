@@ -241,8 +241,18 @@ async function assessNetworkRisk(req) {
       clearTimeout(timer);
     }
     if (!response.ok) {
-      console.warn('Network risk lookup HTTP error:', response.status);
-      return { configured: true, detected: false, unavailable: true, reason: 'HTTP_ERROR' };
+      const providerBody = await response.text().catch(() => '');
+      console.warn(
+        'Network risk lookup HTTP error:',
+        response.status,
+        providerBody.slice(0, 500)
+      );
+      return {
+        configured: true,
+        detected: false,
+        unavailable: true,
+        reason: 'HTTP_' + response.status
+      };
     }
 
     const data = await response.json();
@@ -266,8 +276,9 @@ async function assessNetworkRisk(req) {
       fraudScore: Number.isFinite(Number(data.fraud_score)) ? Number(data.fraud_score) : null
     };
   } catch (error) {
-    console.warn('Network risk lookup unavailable:', error.message);
-    return { configured: true, detected: false, unavailable: true };
+    const reason = error?.name === 'AbortError' ? 'TIMEOUT' : 'REQUEST_ERROR';
+    console.warn('Network risk lookup unavailable:', reason, error.message);
+    return { configured: true, detected: false, unavailable: true, reason };
   }
 }
 

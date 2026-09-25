@@ -18,7 +18,7 @@
     .link-btn { background: none; color: var(--primary); font-size: 13px; text-decoration: underline; margin-top: 10px; font-weight: normal; }
     .hidden { display: none !important; }
     .err { color: #dc3545; font-size: 13px; margin-top: 5px; text-align: center; font-weight: bold; }
-    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 1000; }
+    .toast { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 18px); bottom: auto; left: 50%; transform: translateX(-50%); width: min(92vw, 520px); box-sizing: border-box; background: #222; color: white; padding: 14px 18px; border-radius: 14px; font-size: 14px; font-weight: 700; line-height: 1.7; text-align: center; direction: rtl; box-shadow: 0 10px 30px rgba(0,0,0,.28); z-index: 100000; pointer-events: none; }
     .user-card { background: linear-gradient(135deg, #D71212 0%, #9f0d0d 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
     .balance-title { font-size: 14px; opacity: 0.9; }
     .balance-amount { font-size: 32px; font-weight: bold; margin: 10px 0; }

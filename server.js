@@ -5277,6 +5277,113 @@ app.post(
 );
 
 // =====================================================
+// ADMIN SYNC PAYOUT STATUS
+// =====================================================
+
+app.post(
+  '/api/admin/withdrawals/:id/sync-payout',
+  adminRequired,
+  sensitiveLimiter,
+  async (req, res) => {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+
+      const result = await client.query(
+        `SELECT
+           w.*,
+           wm.code AS method,
+           aa.metadata->>'payout_reference' AS payout_reference
+         FROM withdrawals w
+         LEFT JOIN withdrawal_methods wm ON wm.id = w.method_id
+         LEFT JOIN LATERAL (
+           SELECT metadata
+           FROM admin_actions
+           WHERE entity_type = 'WITHDRAWAL'
+             AND entity_id = w.id::text
+             AND action_type = 'WITHDRAWAL_PROCESSING'
+           ORDER BY created_at DESC, id DESC
+           LIMIT 1
+         ) aa ON TRUE
+         WHERE w.id = $1
+         LIMIT 1
+         FOR UPDATE OF w`,
+        [req.params.id]
+      );
+
+      const withdrawal = result.rows[0];
+      if (!withdrawal) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'درخواست یافت نشد' });
+      }
+
+      if (withdrawal.status !== 'PROCESSING') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'فقط برداشت در حال پردازش قابل بررسی است' });
+      }
+
+      const method = String(withdrawal.method || '').toUpperCase();
+      if (!['MOMO', 'M-PAISA'].includes(method)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'بررسی خودکار وضعیت برای این روش فعال نیست' });
+      }
+
+      const referenceId = String(withdrawal.payout_reference || '').trim();
+      if (!referenceId) {
+        throw new Error('Payout reference missing');
+      }
+
+      const provider = getPayoutProvider(method);
+      const providerStatus = await provider.getStatus(referenceId);
+      const status = String(providerStatus?.status || '').trim().toUpperCase();
+
+      await client.query(
+        `INSERT INTO admin_actions (
+           action_type, entity_type, entity_id, metadata
+         ) VALUES (
+           'WITHDRAWAL_PAYOUT_STATUS_SYNC',
+           'WITHDRAWAL',
+           $1,
+           $2::jsonb
+         )`,
+        [
+          String(withdrawal.id),
+          JSON.stringify({
+            withdrawal_id: withdrawal.withdrawal_id,
+            payout_provider: provider.code,
+            payout_reference: referenceId,
+            provider_status: status || null
+          })
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      // Financial finalization stays explicit: a provider status lookup never
+      // mutates wallet/ledger to PAID by itself. This avoids double-finalizing
+      // money and keeps the existing audited /paid transaction as the sole
+      // financial finalization boundary.
+      res.json({
+        ok: true,
+        payout: {
+          provider: provider.code,
+          referenceId,
+          status: status || 'UNKNOWN',
+          financialFinalizationRequired: status === 'SUCCESSFUL'
+        }
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Sync payout status failed:', error);
+      res.status(500).json({ error: 'بررسی وضعیت پرداخت انجام نشد' });
+    } finally {
+      client.release();
+    }
+  }
+);
+
+// =====================================================
 // ADMIN MARK PAID
 // =====================================================
 

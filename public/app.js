@@ -34,6 +34,8 @@ function showView(name) {
   document.body.classList.toggle('auth-mode', authMode);
 }
 
+let toastTimer = null;
+
 function toast(msg) {
   const t = el('toast');
 
@@ -42,12 +44,16 @@ function toast(msg) {
     return;
   }
 
+  if (toastTimer) clearTimeout(toastTimer);
+
   t.textContent = msg;
   t.classList.remove('hidden');
 
-  setTimeout(() => {
+  const duration = String(msg || '').length > 70 ? 6500 : 4500;
+  toastTimer = setTimeout(() => {
     t.classList.add('hidden');
-  }, 3000);
+    toastTimer = null;
+  }, duration);
 }
 
 function showErr(id, msg) {

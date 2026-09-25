@@ -149,7 +149,6 @@ async function doLogin() {
     });
 
     TOKEN = data.token;
-    if (data.networkWarning?.message) toast(data.networkWarning.message);
     USER_NAME = data.name || '';
 
     localStorage.setItem('token', TOKEN);
@@ -194,7 +193,6 @@ async function doRegister() {
     });
 
     TOKEN = data.token;
-    if (data.networkWarning?.message) toast(data.networkWarning.message);
     USER_NAME = data.name || name;
 
     localStorage.setItem('token', TOKEN);

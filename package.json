@@ -1,7 +1,7 @@
 {
   "name": "earnapp",
   "version": "1.0.0",
-  "description": "Kariyab - Production reward platform",
+  "description": "Karyab - Production reward platform",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,9 +12,7 @@
     "android:add": "npx cap add android",
     "android:build": "npm run android:sync && cd android && ./gradlew bundleRelease"
   },
-  "engines": {
-    "node": ">=18"
-  },
+  "engines": {"node": ">=18"},
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "express": "^4.19.2",

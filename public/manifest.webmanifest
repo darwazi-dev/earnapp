@@ -1,0 +1,12 @@
+{
+  "name": "Kariyab",
+  "short_name": "Kariyab",
+  "description": "Kariyab reward platform",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#D71212",
+  "lang": "fa",
+  "dir": "rtl"
+}

@@ -29,6 +29,6 @@ jobs:
         run: cd android && ./gradlew bundleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: kariyab-android-release-unsigned
+          name: karyab-android-release-unsigned
           path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: error

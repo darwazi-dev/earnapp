@@ -8,5 +8,12 @@
   "background_color": "#ffffff",
   "theme_color": "#D71212",
   "lang": "fa",
-  "dir": "rtl"
+  "dir": "rtl",
+  "id": "/",
+  "orientation": "portrait",
+  "categories": [
+    "finance",
+    "business"
+  ],
+  "prefer_related_applications": false
 }

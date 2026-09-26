@@ -1,7 +1,7 @@
 {
-  "name": "Kariyab",
-  "short_name": "Kariyab",
-  "description": "Kariyab helps users access supported earning opportunities, track verified rewards, and request withdrawals.",
+  "name": "Karyab",
+  "short_name": "Karyab",
+  "description": "Karyab helps users access supported earning opportunities, track verified rewards, and request withdrawals.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -11,21 +11,10 @@
   "dir": "rtl",
   "id": "/",
   "orientation": "portrait",
-  "categories": [
-    "finance",
-    "business"
-  ],
+  "categories": ["finance", "business"],
   "prefer_related_applications": false,
   "shortcuts": [
-    {
-      "name": "Wallet",
-      "short_name": "Wallet",
-      "url": "/wallet.html"
-    },
-    {
-      "name": "Verification",
-      "short_name": "Verify",
-      "url": "/verify.html"
-    }
+    {"name": "Wallet", "short_name": "Wallet", "url": "/wallet.html"},
+    {"name": "Verification", "short_name": "Verify", "url": "/verify.html"}
   ]
 }

@@ -5192,6 +5192,15 @@ app.post(
       }
 
       const payoutProvider = getPayoutProvider(processingRow.method);
+
+      if (!payoutProvider.isConfigured()) {
+        await client.query('ROLLBACK');
+        return res.status(503).json({
+          error: 'روش پرداخت هنوز برای انتقال واقعی پیکربندی نشده است',
+          code: 'PAYOUT_PROVIDER_NOT_CONFIGURED'
+        });
+      }
+
       const payoutPlan = await payoutProvider.initiate({
         withdrawal_id: withdrawal.withdrawal_id,
         amount_minor: processingRow?.amount_minor,

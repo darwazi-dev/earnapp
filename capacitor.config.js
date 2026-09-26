@@ -2,8 +2,8 @@ const { CapacitorConfig } = require('@capacitor/cli');
 
 /** @type {CapacitorConfig} */
 const config = {
-  appId: 'com.kariyab.app',
-  appName: 'Kariyab',
+  appId: 'com.karyab.app',
+  appName: 'Karyab',
   webDir: 'public',
   server: {
     url: 'https://earnapp-production.up.railway.app',

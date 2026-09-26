@@ -8,7 +8,9 @@
     "migrate": "node db/migrate.js",
     "test": "node --test",
     "android:sync": "npx cap sync android",
-    "android:open": "npx cap open android"
+    "android:open": "npx cap open android",
+    "android:add": "npx cap add android",
+    "android:build": "npm run android:sync && cd android && ./gradlew bundleRelease"
   },
   "engines": {
     "node": ">=18"

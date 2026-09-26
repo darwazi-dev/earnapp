@@ -1,7 +1,7 @@
 {
   "name": "Kariyab",
   "short_name": "Kariyab",
-  "description": "Kariyab reward platform",
+  "description": "Kariyab helps users access supported earning opportunities, track verified rewards, and request withdrawals.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -15,5 +15,17 @@
     "finance",
     "business"
   ],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Wallet",
+      "short_name": "Wallet",
+      "url": "/wallet.html"
+    },
+    {
+      "name": "Verification",
+      "short_name": "Verify",
+      "url": "/verify.html"
+    }
+  ]
 }

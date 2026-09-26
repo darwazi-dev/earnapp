@@ -31,7 +31,8 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
       - run: npm test
         env:
           TEST_DATABASE_URL: postgres://kariyab_test:integration_only@localhost:5432/kariyab_test

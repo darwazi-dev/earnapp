@@ -5370,6 +5370,7 @@ app.post(
           provider: provider.code,
           referenceId,
           status: status || 'UNKNOWN',
+          providerConfirmed: status === 'SUCCESSFUL',
           financialFinalizationRequired: status === 'SUCCESSFUL'
         }
       });
